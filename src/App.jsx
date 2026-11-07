@@ -9,6 +9,7 @@ import { canManageMembers } from './access'
 import PublicApp from './PublicApp'
 import BranchAdministration from './BranchAdministration'
 import Applications from './Applications'
+import Plans from './Plans.jsx'
 import { isOrganizationAdmin, personalNavigation, visibleManagementNavigation } from './navigation'
 
 const emptyMember = { first_name: '', last_name: '', email: '', phone: '', branch_id: '', status: 'active' }
@@ -227,8 +228,8 @@ function Workspace({ session }) {
   const orgAdmin = isOrganizationAdmin(owner, assignments)
   const canViewMembers = managementNav.some((item) => item.id === 'members')
   const currentPage = [...personalNavigation, ...managementNav].find((item) => item.id === page)
-  const pageAvailable = page === 'dashboard' || (page === 'applications' && owner) || Boolean(currentPage)
-  const pageTitle = page === 'dashboard' ? 'Overview' : page === 'applications' && owner ? 'Church applications' : currentPage?.label || 'Access changed'
+  const pageAvailable = page === 'dashboard' || (['applications', 'plans'].includes(page) && owner) || Boolean(currentPage)
+  const pageTitle = page === 'dashboard' ? 'Overview' : page === 'applications' && owner ? 'Church applications' : page === 'plans' && owner ? 'Plans & billing' : currentPage?.label || 'Access changed'
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return members.filter((member) => [member.first_name, member.last_name, member.email, member.phone].some((value) => value?.toLowerCase().includes(needle)))
@@ -251,6 +252,7 @@ function Workspace({ session }) {
       <nav className="workspace-nav" aria-label="Main navigation">
         <button className={`nav-item ${page === 'dashboard' ? 'selected' : ''}`} onClick={() => navigate('dashboard')}><LayoutDashboard size={18} /> Overview</button>
         {owner && <button className={`nav-item ${page === 'applications' ? 'selected' : ''}`} onClick={() => navigate('applications')}><ClipboardList size={18} /> Church applications</button>}
+        {owner && <button className={`nav-item ${page === 'plans' ? 'selected' : ''}`} onClick={() => navigate('plans')}><Building2 size={18} /> Plans & billing</button>}
         <div className="nav-label nav-label-spaced">MY CHURCH</div>
         {personalNavigation.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><HeartHandshake size={18} /> {item.label}{<span className="nav-soon">Soon</span>}</button>)}
         {managementNav.length > 0 && <div className="nav-label nav-label-spaced">MANAGEMENT</div>}
@@ -265,7 +267,7 @@ function Workspace({ session }) {
         <div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-dot" /> {page === 'dashboard' ? 'YOUR CHURCH, CONNECTED' : 'YOUR WORKSPACE'}</div><h1>{page === 'dashboard' ? `Welcome back, ${firstName}.` : pageTitle}</h1><p>{page === 'dashboard' ? 'Here’s a little overview of your community.' : page === 'members' ? 'A thoughtful home for the people who make your church.' : 'Your church community, in one place.'}</p></div>
           <div className="heading-actions">{organizations.length > 0 && <label className="select-wrap"><span className="sr-only">Choose church</span><Building2 size={16} /><select value={orgId} onChange={(e) => { setOrgId(e.target.value); setNotice('') }}>{organizations.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>}{owner && <button className="button button-outline" onClick={() => { setError(''); setModal('organization') }}><Plus size={16} /> New church</button>}{org && canCreate && <button className="button button-dark" onClick={() => setModal('add')}><Plus size={17} /> Add member</button>}</div>
         </div>
-        {loading ? <div className="loading">Loading your workspace…</div> : owner && page === 'applications' ? <Applications onApproved={loadOrganizations} /> : !org ? <section className="empty-workspace"><span className="empty-icon"><Church size={27} /></span><h2>Let’s make room for community.</h2><p>{owner ? 'Review church applications, or create a church workspace directly.' : 'You don’t have a church assignment yet. If you registered a church, confirm your email and wait for platform owner approval.'}</p>{owner && <button className="button button-dark" onClick={() => navigate('applications')}>Review applications <ArrowRight size={17} /></button>}</section> : orgLoading ? <div className="loading">Loading church workspace…</div> : <>
+        {loading ? <div className="loading">Loading your workspace…</div> : owner && page === 'applications' ? <Applications onApproved={loadOrganizations} /> : owner && page === 'plans' ? <Plans /> : !org ? <section className="empty-workspace"><span className="empty-icon"><Church size={27} /></span><h2>Let’s make room for community.</h2><p>{owner ? 'Review church applications, or create a church workspace directly.' : 'You don’t have a church assignment yet. If you registered a church, confirm your email and wait for platform owner approval.'}</p>{owner && <button className="button button-dark" onClick={() => navigate('applications')}>Review applications <ArrowRight size={17} /></button>}</section> : orgLoading ? <div className="loading">Loading church workspace…</div> : <>
           {page === 'dashboard' && <>
             <div className="welcome-banner"><div className="banner-copy"><span className="banner-tag"><Sparkles size={13} /> A SPACE TO BELONG</span><h2>Good things happen<br />when we <em>come together.</em></h2><p>Your people are at the heart of everything. Let’s keep them close.</p>{canViewMembers && <button onClick={() => navigate('members')}>Explore your directory <ArrowRight size={16} /></button>}</div><div className="banner-art"><div className="banner-circle circle-a" /><div className="banner-circle circle-b" /><div className="banner-church"><Church size={58} strokeWidth={1.1} /></div><span className="banner-sparkle">✳</span></div></div>
             {canViewMembers && <><div className="section-title"><div><span className="section-kicker">AT A GLANCE</span><h2>Your community overview</h2></div><span className="section-caption">Based on members you can access</span></div>

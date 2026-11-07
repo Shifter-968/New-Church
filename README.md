@@ -8,6 +8,7 @@ An independent React **JavaScript** application, with a new Supabase database an
 - Church registration creates an email/password account and a pending application. A platform owner can approve or reject it; approval creates the organization and an organization-wide administrator assignment. Email confirmation is required before approval. Existing accounts cannot yet submit a new application through the interface.
 - Supabase email/password sign-in and sign-out.
 - Platform owners can create and select church workspaces.
+- Platform owners can create and edit the plan catalogue, including pricing, limits and feature flags. Plans are not yet selected in registration, assigned to organizations, billed, or enforced.
 - A member directory with search, add, edit and removal, subject to database-enforced permissions and organization/branch scope.
 - An overview based on accessible members and branches. The directory currently loads at most 1,000 members; search and overview counts cover only those loaded.
 - Organization-wide or branch-scoped assignments, and permission bundles stored in the database.
@@ -18,7 +19,7 @@ Plans, payment, Google sign-in, individual registration, events, attendance, min
 ## 1. Create a fresh Supabase project
 
 1. Create a **new**, separate Supabase project. Do not use the old application's database.
-2. In its SQL editor, run [supabase/schema.sql](supabase/schema.sql), [supabase/002_public_search_and_branch_admin.sql](supabase/002_public_search_and_branch_admin.sql), [supabase/003_organization_applications.sql](supabase/003_organization_applications.sql), and [supabase/004_branch_admin_by_email.sql](supabase/004_branch_admin_by_email.sql), **once each, in order**. If the first two have already been applied, run only the remaining files. Do not rerun the initial schema on a database with existing tables of the same names.
+2. In its SQL editor, run [supabase/schema.sql](supabase/schema.sql), [supabase/002_public_search_and_branch_admin.sql](supabase/002_public_search_and_branch_admin.sql), [supabase/003_organization_applications.sql](supabase/003_organization_applications.sql), [supabase/004_branch_admin_by_email.sql](supabase/004_branch_admin_by_email.sql), and [supabase/005_plan_catalog.sql](supabase/005_plan_catalog.sql), **once each, in order**. If earlier migrations have already been applied, run only the remaining files. Do not rerun the initial schema on a database with existing tables of the same names.
 3. In Authentication > Users, create the initial owner user and confirm their email. Then use the SQL editor, replacing the email with the exact email for that account:
 
    ```sql
