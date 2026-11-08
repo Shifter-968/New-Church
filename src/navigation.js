@@ -9,7 +9,7 @@ export const personalNavigation = [
 
 export const managementNavigation = [
   { id: 'members', label: 'Members', permission: 'members.view' },
-  { id: 'membership-requests', label: 'Membership requests', permission: 'members.create' },
+  { id: 'membership-requests', label: 'Membership requests', permission: 'members.update' },
   { id: 'children', label: 'Children', permission: 'members.view' },
   { id: 'families', label: 'Families', permission: 'members.view' },
   { id: 'visitors', label: 'Visitors', permission: 'visitors.view' },

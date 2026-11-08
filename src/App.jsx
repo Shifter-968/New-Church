@@ -14,9 +14,10 @@ import ActionLabel from './ActionLabel'
 import MyChurch from './MyChurch.jsx'
 import SupportActivity from './SupportActivity.jsx'
 import ConnectGroups from './ConnectGroups.jsx'
+import MembershipReviews from './MembershipReviews.jsx'
 import { isOrganizationAdmin, personalNavigation, visibleManagementNavigation } from './navigation'
 
-const emptyMember = { first_name: '', last_name: '', email: '', phone: '', date_of_birth: '', branch_id: '', status: 'active' }
+const emptyMember = { first_name: '', last_name: '', email: '', phone: '', phone_2: '', date_of_birth: '', branch_id: '', status: 'active' }
 function Brand({ light = false }) {
   return <div className={`brand ${light ? 'brand-light' : ''}`}><span className="brand-mark"><Church size={19} strokeWidth={2.2} /></span><span>afri<span className="brand-accent">church</span><small>CHURCH MANAGEMENT</small></span></div>
 }
@@ -101,6 +102,7 @@ function MemberForm({ member, branches, canSaveBranch, onSave, onClose }) {
     const payload = {
       first_name: form.first_name.trim(), last_name: form.last_name.trim(),
       email: form.email?.trim() || null, phone: form.phone?.trim() || null,
+      phone_2: form.phone_2?.trim() || null,
       date_of_birth: form.date_of_birth || null,
       branch_id: form.branch_id || null, status: form.status,
     }
@@ -123,7 +125,7 @@ function MemberForm({ member, branches, canSaveBranch, onSave, onClose }) {
     <form onSubmit={submit} className="member-form">
       <div className="form-grid"><label>First name<input value={form.first_name} onChange={change('first_name')} maxLength={100} required autoFocus /></label><label>Last name<input value={form.last_name} onChange={change('last_name')} maxLength={100} required /></label></div>
       <div className="form-grid"><label>Email address <span className="optional">Optional</span><input type="email" value={form.email || ''} onChange={change('email')} /></label><label>Phone number <span className="optional">Optional</span><input type="tel" value={form.phone || ''} onChange={change('phone')} /></label></div>
-      <label>Date of birth <span className="optional">Required for self-registration</span><input type="date" value={form.date_of_birth || ''} onChange={change('date_of_birth')} /></label>
+      <div className="form-grid"><label>Second phone number <span className="optional">Optional</span><input type="tel" maxLength={40} value={form.phone_2 || ''} onChange={change('phone_2')} /></label><label>Date of birth <span className="optional">Optional</span><input type="date" value={form.date_of_birth || ''} onChange={change('date_of_birth')} /></label></div>
       {member?.user_id && <Notice>Branch, status and deletion are unavailable for linked accounts until account access management is implemented.</Notice>}
       <div className="form-grid"><label>Branch<select value={form.branch_id} onChange={change('branch_id')} required={!canSaveBranch(null)} disabled={Boolean(member?.user_id)}><option value="" disabled={!canSaveBranch(null)}>No branch</option>{branches.filter((branch) => canSaveBranch(branch.id)).map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label>Status<select value={form.status} onChange={change('status')} disabled={Boolean(member?.user_id)}><option value="active">Active</option><option value="inactive">Inactive</option></select></label></div>
       <div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-dark" disabled={busy} aria-busy={busy}><ActionLabel busy={busy} pending="Saving…">Save member</ActionLabel>{!busy && <ArrowRight size={16} />}</button></div>
@@ -151,6 +153,7 @@ function Workspace({ session }) {
   const [signingOut, setSigningOut] = useState(false)
   const [deletingId, setDeletingId] = useState('')
   const [registrationError, setRegistrationError] = useState('')
+  const [registrationStatus, setRegistrationStatus] = useState('')
   const [registrationBusy, setRegistrationBusy] = useState(false)
 
   const loadOrganizations = useCallback(async () => {
@@ -171,8 +174,9 @@ function Workspace({ session }) {
     let active = true
     async function initialize() {
       if (session.user.user_metadata?.individual_registration) {
-        const { error: completionError } = await supabase.rpc('complete_individual_registration')
+        const { data: status, error: completionError } = await supabase.rpc('complete_individual_registration')
         if (active && completionError) setRegistrationError(completionError.message)
+        else if (active) setRegistrationStatus(status)
       }
       await loadOrganizations()
     }
@@ -183,10 +187,11 @@ function Workspace({ session }) {
   async function retryRegistration() {
     setRegistrationError(''); setRegistrationBusy(true)
     try {
-      const { error: completionError } = await supabase.rpc('complete_individual_registration')
+      const { data: status, error: completionError } = await supabase.rpc('complete_individual_registration')
       if (completionError) throw completionError
+      setRegistrationStatus(status)
       await loadOrganizations()
-      setNotice('Your registration is complete.')
+      if (status === 'completed') setNotice('Your registration is complete.')
     } catch (err) { setRegistrationError(err.message || 'Unable to complete your registration.') }
     finally { setRegistrationBusy(false) }
   }
@@ -317,14 +322,14 @@ function Workspace({ session }) {
         <div className="nav-label nav-label-spaced">MY CHURCH</div>
         {personalNavigation.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><HeartHandshake size={18} /> {item.label}</button>)}
         {managementNav.length > 0 && <div className="nav-label nav-label-spaced">MANAGEMENT</div>}
-        {managementNav.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><Users size={18} /> {item.label}{!['members', 'branches'].includes(item.id) && !(owner && item.id === 'audit') && <span className="nav-soon">Soon</span>}</button>)}
+        {managementNav.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><Users size={18} /> {item.label}{!['members', 'branches', 'membership-requests'].includes(item.id) && !(owner && item.id === 'audit') && <span className="nav-soon">Soon</span>}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-note"><Sparkles size={17} /><strong>Built for belonging.</strong><p>A little more space for the things that matter.</p></div><button className="user-button" onClick={signOut} disabled={signingOut} aria-busy={signingOut}><span className="avatar">{firstName[0].toUpperCase()}</span><span className="user-info"><strong>{firstName}</strong><small><ActionLabel busy={signingOut} pending="Signing out…">Sign out</ActionLabel></small></span>{!signingOut && <LogOut size={17} />}</button></div>
     </aside>
     <div className="workspace">
       <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <strong>{pageTitle}</strong></div><div className="topbar-right">{owner && <span className="owner-badge"><ShieldCheck size={14} /> Platform owner</span>}{!owner && orgAdmin && <span className="owner-badge"><ShieldCheck size={14} /> Organization admin</span>}<span className="top-avatar">{firstName[0].toUpperCase()}</span></div></header>
       <main className="main-content">
-        {error && <Notice error>{error}</Notice>}{registrationError && <div className="notice notice-error" role="alert">Registration is not complete: {registrationError} <button className="text-button" disabled={registrationBusy} onClick={retryRegistration}><ActionLabel busy={registrationBusy} pending="Retrying…">Retry registration</ActionLabel></button></div>}{notice && <Notice><Check size={16} /> {notice}</Notice>}
+        {error && <Notice error>{error}</Notice>}{registrationError && <div className="notice notice-error" role="alert">Registration is not complete: {registrationError} <button className="text-button" disabled={registrationBusy} onClick={retryRegistration}><ActionLabel busy={registrationBusy} pending="Retrying…">Retry registration</ActionLabel></button></div>}{registrationStatus === 'pending' && <div className="notice" role="status">Your registration needs church administrator review. After approval, sign in and retry. <button className="text-button" disabled={registrationBusy} onClick={retryRegistration}><ActionLabel busy={registrationBusy} pending="Checking…">Check status</ActionLabel></button></div>}{registrationStatus === 'rejected' && <Notice error>Your registration was not approved. Please contact your church administrator.</Notice>}{notice && <Notice><Check size={16} /> {notice}</Notice>}
         <div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-dot" /> {page === 'dashboard' ? 'YOUR CHURCH, CONNECTED' : 'YOUR WORKSPACE'}</div><h1>{page === 'dashboard' ? `Welcome back, ${firstName}.` : pageTitle}</h1><p>{page === 'dashboard' ? 'Here’s a little overview of your community.' : page === 'members' ? 'A thoughtful home for the people who make your church.' : 'Your church community, in one place.'}</p></div>
           <div className="heading-actions">{organizations.length > 0 && <label className="select-wrap"><span className="sr-only">Choose church</span><Building2 size={16} /><select value={orgId} onChange={(e) => { setOrgId(e.target.value); setNotice('') }}>{organizations.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>}{owner && <button className="button button-outline" onClick={() => { setError(''); setModal('organization') }}><Plus size={16} /> New church</button>}{org && canCreate && <button className="button button-dark" onClick={() => setModal('add')}><Plus size={17} /> Add member</button>}</div>
         </div>
@@ -343,7 +348,8 @@ function Workspace({ session }) {
             </div>
           </section>}
           {pageAvailable && page === 'branches' && <BranchAdministration key={orgId} orgId={orgId} branches={branches} canAdmin={orgAdmin} onRefresh={refreshBranches} />}
-          {page !== 'dashboard' && page !== 'members' && page !== 'branches' && <section className="empty-workspace"><span className="empty-icon"><Sparkles size={24} /></span><h2>{pageTitle}</h2><p>{pageAvailable ? 'This workspace area is not implemented yet. Its navigation is shown according to your permissions.' : 'Your current assignments do not grant access to this area.'}</p></section>}
+          {pageAvailable && page === 'membership-requests' && <MembershipReviews key={orgId} orgId={orgId} branches={branches} />}
+          {page !== 'dashboard' && page !== 'members' && page !== 'branches' && !(pageAvailable && page === 'membership-requests') && <section className="empty-workspace"><span className="empty-icon"><Sparkles size={24} /></span><h2>{pageTitle}</h2><p>{pageAvailable ? 'This workspace area is not implemented yet. Its navigation is shown according to your permissions.' : 'Your current assignments do not grant access to this area.'}</p></section>}
         </>}
         <footer className="content-footer"><span>Made for the work that matters <span>✳</span></span><span>AFRICHURCH / YOUR COMMUNITY</span></footer>
       </main>
