@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, Building2, CalendarDays, Check, Church, ClipboardList, HeartHandshake, LockKeyhole, Search, ShieldCheck, Sparkles, Users, X } from 'lucide-react'
 import { getPublicBranches, searchChurches } from './publicData'
 import { supabase } from './supabase'
+import ActionLabel from './ActionLabel'
 import './public.css'
 
 function Logo({ navigate }) {
@@ -114,27 +115,31 @@ function Register({ navigate }) {
     if (!form.purchase_authorized) { setRegistrationError('Please confirm that you are authorized to manage this church account.'); return }
     if (form.password !== form.confirm_password) { setRegistrationError('Passwords do not match.'); return }
     setSubmitting(true)
-    const readiness = await supabase.rpc('organization_registration_ready')
-    if (readiness.error || !readiness.data) {
-      setRegistrationError('Church registration is not ready. An administrator must apply the organisation applications database migration before registration.')
+    try {
+      const readiness = await supabase.rpc('organization_registration_ready')
+      if (readiness.error || !readiness.data) {
+        setRegistrationError('Church registration is not ready. An administrator must apply the organisation applications database migration before registration.')
+        return
+      }
+      const application = {
+        organization_name: form.organization_name.trim(), account_role: form.account_role,
+        address: form.address.trim(), city: form.city.trim(), country: form.country.trim(),
+        first_name: form.first_name.trim(), last_name: form.last_name.trim(),
+        phone: form.phone.trim(), birth_date: form.birth_date, gender: form.gender || null,
+        purchase_authorized: form.purchase_authorized,
+      }
+      const { data, error } = await supabase.auth.signUp({
+        email: form.email.trim(), password: form.password,
+        options: { data: { full_name: `${application.first_name} ${application.last_name}`, organization_application: application }, emailRedirectTo: `${window.location.origin}/login` },
+      })
+      if (error) setRegistrationError(error.message)
+      else if (!data.user || (Array.isArray(data.user.identities) && data.user.identities.length === 0)) setRegistrationError('Unable to create an account with those details. If you already have an account, sign in instead.')
+      else setSubmitted(true)
+    } catch (error) {
+      setRegistrationError(error.message || 'Unable to submit your application. Please try again.')
+    } finally {
       setSubmitting(false)
-      return
     }
-    const application = {
-      organization_name: form.organization_name.trim(), account_role: form.account_role,
-      address: form.address.trim(), city: form.city.trim(), country: form.country.trim(),
-      first_name: form.first_name.trim(), last_name: form.last_name.trim(),
-      phone: form.phone.trim(), birth_date: form.birth_date, gender: form.gender || null,
-      purchase_authorized: form.purchase_authorized,
-    }
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email.trim(), password: form.password,
-      options: { data: { full_name: `${application.first_name} ${application.last_name}`, organization_application: application }, emailRedirectTo: `${window.location.origin}/login` },
-    })
-    if (error) setRegistrationError(error.message)
-    else if (!data.user || (Array.isArray(data.user.identities) && data.user.identities.length === 0)) setRegistrationError('Unable to create an account with those details. If you already have an account, sign in instead.')
-    else setSubmitted(true)
-    setSubmitting(false)
   }
   if (submitted) return <main className="registration-page registration-narrow"><section className="registration-card"><span className="public-icon"><Check size={22} /></span><div className="registration-heading"><h1>Application <em>received.</em></h1><p>Confirm your email if requested, then sign in. A platform owner must review your application before your church workspace is available.</p></div><button className="public-primary" onClick={() => navigate('/login')}>Go to sign in <ArrowRight size={16} /></button></section></main>
   if (!type) return <main className="registration-page"><button className="back-link" onClick={() => navigate('/')}><ArrowLeft size={16} /> Back to home</button><div className="registration-heading centered"><span className="public-kicker"><span className="public-dot" /> GET STARTED</span><h1>There’s a place for <em>you.</em></h1><p>Let’s find the right way to bring you into the community.</p></div><div className="gateway-grid">
@@ -153,7 +158,7 @@ function Register({ navigate }) {
       {!org && <div className="fields-grid"><label className="field-label wide">I am registering as <span>*</span><select value={form.person_type} onChange={update('person_type')}><option value="MEMBER">Member</option><option value="VISITOR">Visitor</option></select></label>{form.person_type === 'MEMBER' && <><div className="field-hint wide">Members must already be registered by their church administrator. Your name and email, either phone number or national ID will be checked against the church register. Otherwise, register as a visitor.</div><label className="field-label wide">National ID number <small>Optional, helps verification</small><input value={form.national_id} onChange={update('national_id')} /></label></>}</div>}
       <div className="form-divider"><span>YOUR DETAILS</span></div><div className="google-placeholder"><button type="button" disabled>Continue with Google</button><small>Google sign-in will be connected later. Or use email and password below.</small></div>
       <div className="fields-grid"><label className="field-label">First name <span>*</span><input value={form.first_name} onChange={update('first_name')} autoComplete="given-name" required /></label><label className="field-label">Last name <span>*</span><input value={form.last_name} onChange={update('last_name')} autoComplete="family-name" required /></label><label className="field-label wide">Email address <span>*</span><input type="email" value={form.email} onChange={update('email')} autoComplete="email" required /></label><label className="field-label">Phone number <span>*</span><input type="tel" value={form.phone} onChange={update('phone')} autoComplete="tel" required /></label>{!org && <label className="field-label">Second phone number <small>Optional</small><input type="tel" value={form.contact_number_2} onChange={update('contact_number_2')} /></label>}<label className="field-label">Date of birth <span>*</span><input type="date" max={yesterday} value={form.birth_date} onChange={update('birth_date')} required /></label><label className="field-label">Gender <small>Optional</small><select value={form.gender} onChange={update('gender')}><option value="">Select gender</option><option value="MALE">Male</option><option value="FEMALE">Female</option><option value="OTHER">Other</option></select></label>{!org && <><label className="field-label wide">Residence <small>Optional</small><input value={form.residence} onChange={update('residence')} placeholder="Home address or area" /></label><label className="field-label">Marital status<select value={form.marital_status} onChange={update('marital_status')}><option value="SINGLE">Single</option><option value="MARRIED">Married</option><option value="ENGAGED">Engaged</option><option value="DIVORCED">Divorced</option><option value="UNOFFICIAL_RELATIONSHIP">Unofficial relationship</option></select></label><label className="check-label"><input type="checkbox" checked={form.baptized} onChange={update('baptized')} /> Baptized</label></>}<label className="field-label">Password <span>*</span><input type="password" value={form.password} onChange={update('password')} autoComplete="new-password" required /></label><label className="field-label">Confirm password <span>*</span><input type="password" value={form.confirm_password} onChange={update('confirm_password')} autoComplete="new-password" required /></label></div>
-    </form><aside className="registration-summary"><span className="summary-icon"><Church size={24} /></span><span className="public-kicker">YOUR NEXT CHAPTER</span><h2>{org ? <>A stronger church <em>starts here.</em></> : <>It’s good to <em>belong.</em></>}</h2><p>{org ? 'Everything your church needs, in a space made for people.' : 'Your church community, a little closer to home.'}</p><div className="summary-line" /><ul><li><Check size={16} /> {org ? 'Submit a church application' : 'Connect with your church'}</li><li><Check size={16} /> {org ? 'Confirm your email address' : 'Join as a member or visitor'}</li><li><Check size={16} /> {org ? 'Activate after platform owner approval' : 'No church plan required'}</li></ul>{org && <label className="summary-check"><input type="checkbox" checked={form.purchase_authorized} onChange={update('purchase_authorized')} /> I confirm that I am authorized to manage this church account.</label>}<div className="summary-note"><LockKeyhole size={16} /> {org ? 'No payment is collected yet. The platform owner reviews each application.' : 'Individual registration is not connected yet. This form is a preview and does not create an account.'}</div><button className="public-primary full-width" type="submit" form="registration-form" disabled={!org || submitting}>{org ? (submitting ? 'Submitting…' : 'Submit application') : 'Create account'} <ArrowRight size={16} /></button></aside></div>
+    </form><aside className="registration-summary"><span className="summary-icon"><Church size={24} /></span><span className="public-kicker">YOUR NEXT CHAPTER</span><h2>{org ? <>A stronger church <em>starts here.</em></> : <>It’s good to <em>belong.</em></>}</h2><p>{org ? 'Everything your church needs, in a space made for people.' : 'Your church community, a little closer to home.'}</p><div className="summary-line" /><ul><li><Check size={16} /> {org ? 'Submit a church application' : 'Connect with your church'}</li><li><Check size={16} /> {org ? 'Confirm your email address' : 'Join as a member or visitor'}</li><li><Check size={16} /> {org ? 'Activate after platform owner approval' : 'No church plan required'}</li></ul>{org && <label className="summary-check"><input type="checkbox" checked={form.purchase_authorized} onChange={update('purchase_authorized')} /> I confirm that I am authorized to manage this church account.</label>}<div className="summary-note"><LockKeyhole size={16} /> {org ? 'No payment is collected yet. The platform owner reviews each application.' : 'Individual registration is not connected yet. This form is a preview and does not create an account.'}</div><button className="public-primary full-width" type="submit" form="registration-form" disabled={!org || submitting} aria-busy={submitting}><ActionLabel busy={submitting} pending="Submitting…">{org ? 'Submit application' : 'Create account'}</ActionLabel>{!submitting && <ArrowRight size={16} />}</button></aside></div>
   </main>
 }
 

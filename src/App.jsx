@@ -10,6 +10,7 @@ import PublicApp from './PublicApp'
 import BranchAdministration from './BranchAdministration'
 import Applications from './Applications'
 import Plans from './Plans.jsx'
+import ActionLabel from './ActionLabel'
 import { isOrganizationAdmin, personalNavigation, visibleManagementNavigation } from './navigation'
 
 const emptyMember = { first_name: '', last_name: '', email: '', phone: '', branch_id: '', status: 'active' }
@@ -31,9 +32,14 @@ function AuthScreen({ configured, onHome, onRegister, churchName }) {
     event.preventDefault()
     setError('')
     setBusy(true)
-    const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-    if (authError) setError(authError.message)
-    setBusy(false)
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      if (authError) setError(authError.message)
+    } catch (authError) {
+      setError(authError.message || 'Unable to sign in. Please try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return <div className="auth-page">
@@ -50,7 +56,7 @@ function AuthScreen({ configured, onHome, onRegister, churchName }) {
           <form onSubmit={signIn}>
             <label>Email address<input type="email" placeholder="you@yourchurch.org" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" /></label>
             <label>Password<input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" /></label>
-            <button className="button button-dark sign-in" disabled={!configured || busy}>{busy ? 'Signing in…' : 'Sign in to your workspace'} <ArrowRight size={17} /></button>
+            <button className="button button-dark sign-in" disabled={!configured || busy} aria-busy={busy}><ActionLabel busy={busy} pending="Signing in…">Sign in to your workspace</ActionLabel>{!busy && <ArrowRight size={17} />}</button>
           </form>
           <p className="auth-help"><CircleHelp size={15} /> Need access? Contact your platform administrator.</p>
           <p className="auth-help">New here? <button className="auth-register" onClick={onRegister}>Register</button></p>
@@ -66,15 +72,15 @@ function AuthScreen({ configured, onHome, onRegister, churchName }) {
   </div>
 }
 
-function Modal({ title, description, onClose, children }) {
+function Modal({ title, description, onClose, children, busy = false }) {
   useEffect(() => {
-    function onKey(event) { if (event.key === 'Escape') onClose() }
+    function onKey(event) { if (event.key === 'Escape' && !busy) onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-  return <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+  }, [onClose, busy])
+  return <div className="modal-backdrop" onMouseDown={(e) => { if (!busy && e.target === e.currentTarget) onClose() }}>
     <section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div className="modal-heading"><div><h2 id="modal-title">{title}</h2><p>{description}</p></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
+      <div className="modal-heading"><div><h2 id="modal-title">{title}</h2><p>{description}</p></div><button className="icon-button" aria-label="Close dialog" disabled={busy} onClick={onClose}><X size={20} /></button></div>
       {children}
     </section>
   </div>
@@ -99,16 +105,22 @@ function MemberForm({ member, branches, canSaveBranch, onSave, onClose }) {
       setBusy(false)
       return
     }
-    const result = await onSave(payload, member?.id)
-    if (result) { setError(result); setBusy(false) }
+    try {
+      const result = await onSave(payload, member?.id)
+      if (result) setError(result)
+    } catch (saveError) {
+      setError(saveError.message || 'Unable to save the member. Please try again.')
+    } finally {
+      setBusy(false)
+    }
   }
-  return <Modal title={member ? 'Edit member' : 'Add a member'} description="Keep your community connected, one person at a time." onClose={onClose}>
+  return <Modal title={member ? 'Edit member' : 'Add a member'} description="Keep your community connected, one person at a time." onClose={onClose} busy={busy}>
     {error && <Notice error>{error}</Notice>}
     <form onSubmit={submit} className="member-form">
       <div className="form-grid"><label>First name<input value={form.first_name} onChange={change('first_name')} maxLength={100} required autoFocus /></label><label>Last name<input value={form.last_name} onChange={change('last_name')} maxLength={100} required /></label></div>
       <div className="form-grid"><label>Email address <span className="optional">Optional</span><input type="email" value={form.email || ''} onChange={change('email')} /></label><label>Phone number <span className="optional">Optional</span><input type="tel" value={form.phone || ''} onChange={change('phone')} /></label></div>
       <div className="form-grid"><label>Branch<select value={form.branch_id} onChange={change('branch_id')} required={!canSaveBranch(null)}><option value="" disabled={!canSaveBranch(null)}>No branch</option>{branches.filter((branch) => canSaveBranch(branch.id)).map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label>Status<select value={form.status} onChange={change('status')}><option value="active">Active</option><option value="inactive">Inactive</option></select></label></div>
-      <div className="modal-actions"><button type="button" className="button button-outline" onClick={onClose}>Cancel</button><button className="button button-dark" disabled={busy}>{busy ? 'Saving…' : 'Save member'} <ArrowRight size={16} /></button></div>
+      <div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-dark" disabled={busy} aria-busy={busy}><ActionLabel busy={busy} pending="Saving…">Save member</ActionLabel>{!busy && <ArrowRight size={16} />}</button></div>
     </form>
   </Modal>
 }
@@ -130,6 +142,8 @@ function Workspace({ session }) {
   const [orgLoading, setOrgLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [deletingId, setDeletingId] = useState('')
 
   const loadOrganizations = useCallback(async () => {
     const [ownerResult, orgResult] = await Promise.all([
@@ -196,10 +210,17 @@ function Workspace({ session }) {
   async function deleteMember(member) {
     if (!window.confirm(`Remove ${member.first_name} ${member.last_name} from this directory? This cannot be undone.`)) return
     setError('')
-    const { data, error: deleteError } = await supabase.from('members').delete().eq('id', member.id).eq('organization_id', orgId).select('id')
-    if (deleteError || !data.length) { setError(deleteError?.message || 'The member could not be removed. Check your permissions.'); return }
-    setNotice('Member removed.')
-    try { await refreshMembers() } catch (err) { setError(`Removed, but the list could not be refreshed: ${err.message}`) }
+    setDeletingId(member.id)
+    try {
+      const { data, error: deleteError } = await supabase.from('members').delete().eq('id', member.id).eq('organization_id', orgId).select('id')
+      if (deleteError || !data?.length) { setError(deleteError?.message || 'The member could not be removed. Check your permissions.'); return }
+      setNotice('Member removed.')
+      try { await refreshMembers() } catch (err) { setError(`Removed, but the list could not be refreshed: ${err.message}`) }
+    } catch (err) {
+      setError(err.message || 'Unable to remove the member. Please try again.')
+    } finally {
+      setDeletingId('')
+    }
   }
 
   async function createOrg(event) {
@@ -207,18 +228,32 @@ function Workspace({ session }) {
     setError('')
     if (newOrg.trim().length < 2) { setError('Church name must contain at least two characters.'); return }
     setBusy(true)
-    const { data, error: createError } = await supabase.from('organizations').insert({ name: newOrg.trim() }).select('id').single()
-    if (createError) { setError(createError.message); setBusy(false); return }
     try {
-      await loadOrganizations()
-      setOrgId(data.id); setNewOrg(''); setModal(null); setNotice('Church workspace created.')
-    } catch (err) { setError(`Church created, but the list could not be refreshed: ${err.message}`) }
-    setBusy(false)
+      const { data, error: createError } = await supabase.from('organizations').insert({ name: newOrg.trim() }).select('id').single()
+      if (createError) { setError(createError.message); return }
+      try {
+        await loadOrganizations()
+        setOrgId(data.id); setNewOrg(''); setModal(null); setNotice('Church workspace created.')
+      } catch (err) { setError(`Church created, but the list could not be refreshed: ${err.message}`) }
+    } catch (err) {
+      setError(err.message || 'Unable to create the church. Please try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function signOut() {
-    const { error: signOutError } = await supabase.auth.signOut()
-    if (signOutError) setError(signOutError.message)
+    if (signingOut) return
+    setError('')
+    setSigningOut(true)
+    try {
+      const { error: signOutError } = await supabase.auth.signOut()
+      if (signOutError) setError(signOutError.message)
+    } catch (signOutError) {
+      setError(signOutError.message || 'Unable to sign out. Please try again.')
+    } finally {
+      setSigningOut(false)
+    }
   }
 
   const org = organizations.find((item) => item.id === orgId)
@@ -258,7 +293,7 @@ function Workspace({ session }) {
         {managementNav.length > 0 && <div className="nav-label nav-label-spaced">MANAGEMENT</div>}
         {managementNav.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><Users size={18} /> {item.label}{!['members', 'branches'].includes(item.id) && <span className="nav-soon">Soon</span>}</button>)}
       </nav>
-      <div className="sidebar-bottom"><div className="sidebar-note"><Sparkles size={17} /><strong>Built for belonging.</strong><p>A little more space for the things that matter.</p></div><button className="user-button" onClick={signOut}><span className="avatar">{firstName[0].toUpperCase()}</span><span className="user-info"><strong>{firstName}</strong><small>Sign out</small></span><LogOut size={17} /></button></div>
+      <div className="sidebar-bottom"><div className="sidebar-note"><Sparkles size={17} /><strong>Built for belonging.</strong><p>A little more space for the things that matter.</p></div><button className="user-button" onClick={signOut} disabled={signingOut} aria-busy={signingOut}><span className="avatar">{firstName[0].toUpperCase()}</span><span className="user-info"><strong>{firstName}</strong><small><ActionLabel busy={signingOut} pending="Signing out…">Sign out</ActionLabel></small></span>{!signingOut && <LogOut size={17} />}</button></div>
     </aside>
     <div className="workspace">
       <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <strong>{pageTitle}</strong></div><div className="topbar-right">{owner && <span className="owner-badge"><ShieldCheck size={14} /> Platform owner</span>}{!owner && orgAdmin && <span className="owner-badge"><ShieldCheck size={14} /> Organization admin</span>}<span className="top-avatar">{firstName[0].toUpperCase()}</span></div></header>
@@ -278,7 +313,7 @@ function Workspace({ session }) {
             <div className="directory-card"><div className="directory-toolbar"><div><strong>All members</strong><span className="count-pill">{filtered.length}</span></div><label className="search"><Search size={17} /><span className="sr-only">Search members</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people..." /></label></div>
               {members.length === 1000 && <Notice>Showing up to 1,000 accessible members. Search currently covers only those shown.</Notice>}
               {filtered.length === 0 ? <div className="empty-members"><div className="empty-icon"><Users size={24} /></div><h3>{query ? 'No people found' : 'Your directory starts here'}</h3><p>{query ? 'Try another name, email, or phone number.' : 'Members you have permission to see will appear here.'}</p>{!query && canCreate && <button className="text-button" onClick={() => setModal('add')}>Add your first member <ArrowRight size={15} /></button>}</div> :
-                <div className="table-scroll"><table><thead><tr><th>MEMBER</th><th>CONTACT</th><th>BRANCH</th><th>STATUS</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{(page === 'dashboard' ? filtered.slice(0, 5) : filtered).map((member) => <tr key={member.id}><td><div className="member-name"><span className="member-avatar">{member.first_name[0]}{member.last_name[0]}</span><strong>{member.first_name} {member.last_name}</strong></div></td><td><span>{member.email || '—'}</span><small>{member.phone || ''}</small></td><td>{branches.find((branch) => branch.id === member.branch_id)?.name || '—'}</td><td><span className={`status ${member.status}`}><span />{member.status}</span></td><td><div className="row-actions">{can('update', member.branch_id) && <button onClick={() => setModal(member)}>Edit</button>}{can('delete', member.branch_id) && <button onClick={() => deleteMember(member)}>Remove</button>}</div></td></tr>)}</tbody></table></div>}
+                <div className="table-scroll"><table><thead><tr><th>MEMBER</th><th>CONTACT</th><th>BRANCH</th><th>STATUS</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{(page === 'dashboard' ? filtered.slice(0, 5) : filtered).map((member) => <tr key={member.id}><td><div className="member-name"><span className="member-avatar">{member.first_name[0]}{member.last_name[0]}</span><strong>{member.first_name} {member.last_name}</strong></div></td><td><span>{member.email || '—'}</span><small>{member.phone || ''}</small></td><td>{branches.find((branch) => branch.id === member.branch_id)?.name || '—'}</td><td><span className={`status ${member.status}`}><span />{member.status}</span></td><td><div className="row-actions">{can('update', member.branch_id) && <button disabled={Boolean(deletingId)} onClick={() => setModal(member)}>Edit</button>}{can('delete', member.branch_id) && <button disabled={Boolean(deletingId)} aria-busy={deletingId === member.id} onClick={() => deleteMember(member)}><ActionLabel busy={deletingId === member.id} pending="Removing…">Remove</ActionLabel></button>}</div></td></tr>)}</tbody></table></div>}
             </div>
           </section>}
           {pageAvailable && page === 'branches' && <BranchAdministration key={orgId} orgId={orgId} branches={branches} canAdmin={orgAdmin} onRefresh={refreshBranches} />}
@@ -287,7 +322,7 @@ function Workspace({ session }) {
         <footer className="content-footer"><span>Made for the work that matters <span>✳</span></span><span>AFRICHURCH / YOUR COMMUNITY</span></footer>
       </main>
     </div>
-    {modal === 'organization' && <Modal title="Create a church" description="Start a fresh workspace for your church community." onClose={() => setModal(null)}>{error && <Notice error>{error}</Notice>}<form onSubmit={createOrg} className="member-form"><label>Church name<input autoFocus maxLength={120} required value={newOrg} onChange={(e) => setNewOrg(e.target.value)} placeholder="e.g. Grace Community Church" /></label><div className="modal-actions"><button type="button" className="button button-outline" onClick={() => setModal(null)}>Cancel</button><button className="button button-dark" disabled={busy}>{busy ? 'Creating…' : 'Create workspace'} <ArrowRight size={16} /></button></div></form></Modal>}
+    {modal === 'organization' && <Modal title="Create a church" description="Start a fresh workspace for your church community." onClose={() => setModal(null)} busy={busy}>{error && <Notice error>{error}</Notice>}<form onSubmit={createOrg} className="member-form"><label>Church name<input autoFocus maxLength={120} required value={newOrg} onChange={(e) => setNewOrg(e.target.value)} placeholder="e.g. Grace Community Church" /></label><div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={() => setModal(null)}>Cancel</button><button className="button button-dark" disabled={busy} aria-busy={busy}><ActionLabel busy={busy} pending="Creating…">Create workspace</ActionLabel>{!busy && <ArrowRight size={16} />}</button></div></form></Modal>}
     {modal && modal !== 'organization' && <MemberForm member={modal === 'add' ? null : modal} branches={branches} canSaveBranch={(branchId) => can(modal === 'add' ? 'create' : 'update', branchId)} onSave={saveMember} onClose={() => setModal(null)} />}
   </div>
 }
