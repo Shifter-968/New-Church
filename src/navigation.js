@@ -2,6 +2,7 @@ export const personalNavigation = [
   { id: 'profile', label: 'My profile' },
   { id: 'announcements', label: 'Announcements' },
   { id: 'calendar', label: 'My calendar' },
+  { id: 'my-attendance', label: 'My attendance' },
   { id: 'community', label: 'Community' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'personal-settings', label: 'Settings' },

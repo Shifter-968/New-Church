@@ -57,7 +57,7 @@ export default function BranchLocation({ orgId, branches }) {
     } catch (err) { setError(err.message || 'Unable to save location.') }
     finally { setBusy('') }
   }
-  return <section className="directory-card branch-card"><span className="stat-icon mint"><MapPin size={19} /></span><h2>Attendance location</h2><p>Set the church coordinates and permitted radius for each branch. Self check-in is not implemented yet; saving this location does not enable it.</p>
+  return <section className="directory-card branch-card"><span className="stat-icon mint"><MapPin size={19} /></span><h2>Attendance location</h2><p>Set the church coordinates and permitted radius for self check-in at each branch.</p>
     {error && <div className="notice notice-error" role="alert">{error}</div>}{message && <div className="notice" role="status">{message}</div>}
     <form className="branch-form" onSubmit={save}>
       <label>Branch<select value={branchId} onChange={(event) => chooseBranch(event.target.value)} disabled={loading || Boolean(busy)} required><option value="">Select a branch</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
