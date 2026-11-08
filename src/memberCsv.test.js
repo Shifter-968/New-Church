@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import Papa from 'papaparse'
-import { filterMembers, memberCsv, parseMemberCsv, templateCsv } from './memberCsv.js'
+import { filterMembers, memberCsv, parseMemberCsv, possibleDuplicateRows, templateCsv } from './memberCsv.js'
 
 test('parses quoted CSV, optional fields and second phone', () => {
   const rows = parseMemberCsv('\ufefffirst_name,last_name,phone_2,date_of_birth,status\r\n"Mary, Jane",Doe,123,1992-02-29,ACTIVE\r\n')
@@ -32,6 +32,17 @@ test('visitor template and parsing use only supported visitor fields', () => {
   assert.throws(() => parseMemberCsv('first_name,last_name,status\nJane,Doe,active', 'visitors'), /Unsupported columns/)
   assert.equal(templateCsv('visitors').trim(), 'first_name,last_name,email,phone')
   assert.doesNotMatch(memberCsv([{ first_name: 'Jane', last_name: 'Doe' }], [], 'visitors'), /status/)
+})
+
+test('flags possible duplicates within visitor imports by name, email or normalized phone', () => {
+  const rows = [
+    { first_name: 'Jane', last_name: 'Doe', email: 'A@example.test', phone: '123-45' },
+    { first_name: 'jane', last_name: 'DOE', email: 'other@example.test' },
+    { first_name: 'Other', last_name: 'Person', phone: '123 45' },
+    { first_name: 'Third', last_name: 'Person', email: 'a@EXAMPLE.test' },
+    { first_name: 'Fourth', last_name: 'Person' },
+  ]
+  assert.deepEqual(possibleDuplicateRows(rows), [2, 3, 4, 5])
 })
 
 test('filters full names, both phones, branch and status together', () => {

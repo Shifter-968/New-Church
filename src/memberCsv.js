@@ -4,6 +4,23 @@ export const columns = ['first_name', 'last_name', 'email', 'phone', 'phone_2', 
 export const maxImportRows = 500
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+export function possibleDuplicateRows(people) {
+  const seen = new Map()
+  const duplicates = new Set()
+  people.forEach((person, index) => {
+    const first = person.first_name.trim().toLowerCase()
+    const last = person.last_name.trim().toLowerCase()
+    const email = (person.email || '').trim().toLowerCase()
+    const phone = (person.phone || '').replace(/[^0-9]/g, '')
+    const keys = [`name:${first}\u0000${last}`, ...(email ? [`email:${email}`] : []), ...(phone ? [`phone:${phone}`] : [])]
+    for (const key of keys) {
+      if (seen.has(key)) { duplicates.add(seen.get(key)); duplicates.add(index + 2) }
+      else seen.set(key, index + 2)
+    }
+  })
+  return [...duplicates].sort((a, b) => a - b)
+}
+
 function validDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T00:00:00Z`)

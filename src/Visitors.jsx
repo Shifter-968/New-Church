@@ -5,6 +5,7 @@ import { canManageDirectory } from './access'
 import ActionLabel from './ActionLabel'
 import MemberImport, { downloadCsv } from './MemberImport'
 import { filterMembers, memberCsv } from './memberCsv'
+import { findVisitorDuplicates } from './visitorDuplicates'
 
 const emptyVisitor = { first_name: '', last_name: '', email: '', phone: '', branch_id: '' }
 
@@ -12,8 +13,10 @@ function VisitorForm({ visitor, branches, can, onClose, onSaved, Modal, Notice, 
   const [form, setForm] = useState(visitor ? { ...visitor, branch_id: visitor.branch_id || '' } : emptyVisitor)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [matches, setMatches] = useState([])
+  const [checked, setChecked] = useState(false)
   const action = visitor ? 'update' : 'create'
-  const change = (field) => (event) => setForm((previous) => ({ ...previous, [field]: event.target.value }))
+  const change = (field) => (event) => { setChecked(false); setMatches([]); setForm((previous) => ({ ...previous, [field]: event.target.value })) }
 
   async function submit(event) {
     event.preventDefault()
@@ -27,6 +30,10 @@ function VisitorForm({ visitor, branches, can, onClose, onSaved, Modal, Notice, 
     if (!payload.first_name || !payload.last_name) { setError('First and last names cannot be blank.'); return }
     setError(''); setBusy(true)
     try {
+      if (!visitor && !checked) {
+        const found = await findVisitorDuplicates(orgId, [payload])
+        if (found.length) { setMatches(found); setChecked(true); return }
+      }
       const request = visitor
         ? supabase.from('visitors').update(payload).eq('id', visitor.id).eq('organization_id', orgId)
         : supabase.from('visitors').insert({ ...payload, organization_id: orgId })
@@ -40,12 +47,13 @@ function VisitorForm({ visitor, branches, can, onClose, onSaved, Modal, Notice, 
 
   return <Modal title={visitor ? 'Edit visitor' : 'Add a visitor'} description="Keep a record of the people visiting your church." onClose={onClose} busy={busy}>
     {error && <Notice error>{error}</Notice>}
+    {matches.length > 0 && <div className="notice notice-error" role="alert"><div><strong>Possible existing visitor found.</strong> Check the directory instead of adding the same person again. Attendance is not yet available. Matching does not prove identity.<ul>{matches.map((match) => <li key={match.id}>{match.first_name} {match.last_name} · {match.email || 'No email'} · {match.phone || 'No phone'} · {branches.find((branch) => branch.id === match.branch_id)?.name || 'No branch or unavailable'}</li>)}</ul>Only up to five matches are shown. If these are different people, you can choose Create anyway.</div></div>}
     {visitor?.user_id && <Notice>This visitor has an account. Their branch cannot be changed and this record cannot be deleted until account access management is available. Contact changes here do not update their account.</Notice>}
     <form className="member-form" onSubmit={submit}>
       <div className="form-grid"><label>First name<input value={form.first_name} onChange={change('first_name')} maxLength={100} required autoFocus /></label><label>Last name<input value={form.last_name} onChange={change('last_name')} maxLength={100} required /></label></div>
       <div className="form-grid"><label>Email <span className="optional">Optional</span><input type="email" maxLength={320} value={form.email || ''} onChange={change('email')} /></label><label>Phone <span className="optional">Optional</span><input type="tel" maxLength={40} value={form.phone || ''} onChange={change('phone')} /></label></div>
       <label>Branch<select value={form.branch_id} onChange={change('branch_id')} required={!can(action, null)} disabled={Boolean(visitor?.user_id)}><option value="" disabled={!can(action, null)}>No branch</option>{branches.filter((branch) => can(action, branch.id)).map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>
-      <div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-dark" disabled={busy} aria-busy={busy} aria-label={busy ? 'Saving visitor' : 'Save visitor'}><ActionLabel busy={busy} pending="Saving…">Save visitor</ActionLabel></button></div>
+      <div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-dark" disabled={busy} aria-busy={busy} aria-label={busy ? 'Saving visitor' : checked ? 'Create anyway' : 'Save visitor'}><ActionLabel busy={busy} pending="Checking and saving…">{checked ? 'Create anyway' : 'Save visitor'}</ActionLabel></button></div>
     </form>
   </Modal>
 }

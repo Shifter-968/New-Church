@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react'
 import { supabase } from './supabase'
 import ActionLabel from './ActionLabel'
-import { parseMemberCsv, templateCsv } from './memberCsv'
+import { parseMemberCsv, possibleDuplicateRows, templateCsv } from './memberCsv'
+import { findVisitorDuplicates } from './visitorDuplicates'
 
 export function downloadCsv(name, text) {
   const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }))
@@ -40,20 +41,31 @@ export default function MemberImport({ orgId, branches, canCreate, onImported, o
   async function submit(event) {
     event.preventDefault()
     if (busy || locked || !members || !allowedBranches.some((branch) => branch.id === branchId)) return
-    if (!window.confirm(`Add ${members.length} new ${singular} records to this branch? Existing records will not be updated or checked for duplicates.`)) return
-    setError(''); setBusy(true); setLocked(true)
+    setError(''); setBusy(true)
+    let submitted = false
     try {
+      if (kind === 'visitors') {
+        const matches = await findVisitorDuplicates(orgId, members)
+        const rowsInFile = possibleDuplicateRows(members)
+        if (matches.length || rowsInFile.length) {
+          const rowsInDatabase = [...new Set(matches.map((item) => item.row_number + 1))]
+          setError(`Possible duplicates found${rowsInDatabase.length ? ` in the directory for CSV rows ${rowsInDatabase.join(', ')}` : ''}${rowsInFile.length ? ` within the CSV at rows ${rowsInFile.join(', ')}` : ''}. Review them and use existing records instead of importing them again. Names, email or phone can match different people; remove or correct the affected rows and reselect the file.`)
+          return
+        }
+      }
+      if (!window.confirm(`Add ${members.length} new ${singular} records to this branch? Existing records will not be updated.${kind === 'members' ? ' The database is not checked for duplicates.' : ''}`)) return
+      setLocked(true); submitted = true
       const { error: importError } = await supabase.from(kind).insert(members.map((member) => ({ ...member, organization_id: orgId, branch_id: branchId })))
       if (importError) throw importError
       await onImported(members.length)
     } catch (err) {
-      setError(`Import could not be confirmed: ${err.message || 'connection error'}. Check the directory before trying again; the request may have completed.`)
+      setError(submitted ? `Import could not be confirmed: ${err.message || 'connection error'}. Check the directory before trying again; the request may have completed.` : (err.message || 'Unable to check this import.'))
     } finally { setBusy(false) }
   }
 
   return <Modal title={`Import ${kind}`} description="Add new records from a CSV file to one branch." onClose={onClose} busy={busy}>
     {error && <Notice error>{error}</Notice>}
-    <div className="notice">This adds records only. It does not update existing records or check the database for duplicates. Verify your file and directory before importing.</div>
+    <div className="notice">{kind === 'visitors' ? 'Possible duplicate names, emails or phone numbers in your visible directory or file must be reviewed before import. Matching cannot see branches outside your view permissions and does not guarantee uniqueness.' : 'This adds records only. It does not update existing records or check the database for duplicates. Verify your file and directory before importing.'}</div>
     <form className="member-form" onSubmit={submit}>
       <button type="button" className="text-button" onClick={() => downloadCsv(`${singular}-import-template.csv`, templateCsv(kind))}>Download CSV template</button>
       <label>Branch<select value={branchId} onChange={(event) => setBranchId(event.target.value)} required disabled={busy || locked}><option value="">Select a branch</option>{allowedBranches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>
