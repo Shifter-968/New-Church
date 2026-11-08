@@ -27,6 +27,13 @@ test('handles embedded newlines and quotes in CSV fields', () => {
   assert.equal(row.first_name, 'Mary "May"\nAnne')
 })
 
+test('visitor template and parsing use only supported visitor fields', () => {
+  assert.deepEqual(parseMemberCsv('first_name,last_name,email,phone\nJane,Doe,,', 'visitors'), [{ first_name: 'Jane', last_name: 'Doe', email: null, phone: null }])
+  assert.throws(() => parseMemberCsv('first_name,last_name,status\nJane,Doe,active', 'visitors'), /Unsupported columns/)
+  assert.equal(templateCsv('visitors').trim(), 'first_name,last_name,email,phone')
+  assert.doesNotMatch(memberCsv([{ first_name: 'Jane', last_name: 'Doe' }], [], 'visitors'), /status/)
+})
+
 test('filters full names, both phones, branch and status together', () => {
   const list = [{ first_name: 'Jane', last_name: 'Doe', phone_2: '555', branch_id: 'a', status: 'active' }, { first_name: 'John', last_name: 'Doe', branch_id: null, status: 'inactive' }]
   assert.equal(filterMembers(list, 'jane doe', 'a', 'active').length, 1)

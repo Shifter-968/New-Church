@@ -16,6 +16,7 @@ import SupportActivity from './SupportActivity.jsx'
 import ConnectGroups from './ConnectGroups.jsx'
 import MembershipReviews from './MembershipReviews.jsx'
 import MemberImport, { downloadCsv } from './MemberImport.jsx'
+import Visitors from './Visitors.jsx'
 import { filterMembers, memberCsv } from './memberCsv'
 import { isOrganizationAdmin, personalNavigation, visibleManagementNavigation } from './navigation'
 
@@ -323,7 +324,7 @@ function Workspace({ session }) {
         <div className="nav-label nav-label-spaced">MY CHURCH</div>
         {personalNavigation.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><HeartHandshake size={18} /> {item.label}</button>)}
         {managementNav.length > 0 && <div className="nav-label nav-label-spaced">MANAGEMENT</div>}
-        {managementNav.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><Users size={18} /> {item.label}{!['members', 'branches', 'membership-requests'].includes(item.id) && !(owner && item.id === 'audit') && <span className="nav-soon">Soon</span>}</button>)}
+        {managementNav.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><Users size={18} /> {item.label}{!['members', 'visitors', 'branches', 'membership-requests'].includes(item.id) && !(owner && item.id === 'audit') && <span className="nav-soon">Soon</span>}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-note"><Sparkles size={17} /><strong>Built for belonging.</strong><p>A little more space for the things that matter.</p></div><button className="user-button" onClick={signOut} disabled={signingOut} aria-busy={signingOut}><span className="avatar">{firstName[0].toUpperCase()}</span><span className="user-info"><strong>{firstName}</strong><small><ActionLabel busy={signingOut} pending="Signing out…">Sign out</ActionLabel></small></span>{!signingOut && <LogOut size={17} />}</button></div>
     </aside>
@@ -351,7 +352,8 @@ function Workspace({ session }) {
           </section>}
           {pageAvailable && page === 'branches' && <BranchAdministration key={orgId} orgId={orgId} branches={branches} canAdmin={orgAdmin} onRefresh={refreshBranches} />}
           {pageAvailable && page === 'membership-requests' && <MembershipReviews key={orgId} orgId={orgId} branches={branches} />}
-          {page !== 'dashboard' && page !== 'members' && page !== 'branches' && !(pageAvailable && page === 'membership-requests') && <section className="empty-workspace"><span className="empty-icon"><Sparkles size={24} /></span><h2>{pageTitle}</h2><p>{pageAvailable ? 'This workspace area is not implemented yet. Its navigation is shown according to your permissions.' : 'Your current assignments do not grant access to this area.'}</p></section>}
+          {pageAvailable && page === 'visitors' && <Visitors key={orgId} orgId={orgId} branches={branches} owner={owner} assignments={assignments} Modal={Modal} Notice={Notice} />}
+          {page !== 'dashboard' && page !== 'members' && page !== 'branches' && !(pageAvailable && ['membership-requests', 'visitors'].includes(page)) && <section className="empty-workspace"><span className="empty-icon"><Sparkles size={24} /></span><h2>{pageTitle}</h2><p>{pageAvailable ? 'This workspace area is not implemented yet. Its navigation is shown according to your permissions.' : 'Your current assignments do not grant access to this area.'}</p></section>}
         </>}
         <footer className="content-footer"><span>Made for the work that matters <span>✳</span></span><span>AFRICHURCH / YOUR COMMUNITY</span></footer>
       </main>

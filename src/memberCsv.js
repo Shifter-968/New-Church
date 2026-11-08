@@ -10,13 +10,14 @@ function validDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
 
-export function parseMemberCsv(text) {
+export function parseMemberCsv(text, kind = 'members') {
+  const allowedColumns = kind === 'visitors' ? ['first_name', 'last_name', 'email', 'phone'] : columns
   const parsed = Papa.parse(text.replace(/^\uFEFF/, ''), { skipEmptyLines: 'greedy' })
   if (parsed.errors.length) throw new Error(`CSV error: ${parsed.errors[0].message}`)
   if (!parsed.data.length) throw new Error('The CSV file is empty.')
   const headers = parsed.data[0].map((header) => header.trim().toLowerCase())
   if (new Set(headers).size !== headers.length) throw new Error('Column names must be unique.')
-  const unsupported = headers.filter((header) => !columns.includes(header))
+  const unsupported = headers.filter((header) => !allowedColumns.includes(header))
   if (unsupported.length) throw new Error(`Unsupported columns: ${unsupported.join(', ')}. Use the template.`)
   if (!headers.includes('first_name') || !headers.includes('last_name')) throw new Error('The first_name and last_name columns are required.')
   const records = parsed.data.slice(1)
@@ -34,24 +35,26 @@ export function parseMemberCsv(text) {
     const status = (fields.status || 'active').toLowerCase()
     if (!['active', 'inactive'].includes(status)) throw new Error(`Row ${row}: status must be active or inactive.`)
     const key = [fields.first_name.toLowerCase(), fields.last_name.toLowerCase(), (fields.email || '').toLowerCase(), fields.date_of_birth || '', fields.phone || '', fields.phone_2 || ''].join('\u0000')
-    if (seen.has(key)) throw new Error(`Row ${row}: duplicate member details in this file.`)
+    if (seen.has(key)) throw new Error(`Row ${row}: duplicate ${kind === 'visitors' ? 'visitor' : 'member'} details in this file.`)
     seen.add(key)
-    return { first_name: fields.first_name, last_name: fields.last_name, email: fields.email || null, phone: fields.phone || null, phone_2: fields.phone_2 || null, date_of_birth: fields.date_of_birth || null, status }
+    const person = { first_name: fields.first_name, last_name: fields.last_name, email: fields.email || null, phone: fields.phone || null }
+    return kind === 'visitors' ? person : { ...person, phone_2: fields.phone_2 || null, date_of_birth: fields.date_of_birth || null, status }
   })
 }
 
-export function memberCsv(members, branches) {
+export function memberCsv(members, branches, kind = 'members') {
   const branchNames = new Map(branches.map((branch) => [branch.id, branch.name]))
   const rows = members.map((member) => ({
     first_name: member.first_name, last_name: member.last_name, email: member.email || '',
     phone: member.phone || '', phone_2: member.phone_2 || '', date_of_birth: member.date_of_birth || '',
     status: member.status, branch: branchNames.get(member.branch_id) || (member.branch_id ? 'Branch unavailable' : ''),
   }))
-  return '\uFEFF' + Papa.unparse({ fields: [...columns, 'branch'], data: rows }, { escapeFormulae: /^[\t\r\n ]*[=+\-@]|^[\t\r\n]/ })
+  const exportColumns = kind === 'visitors' ? ['first_name', 'last_name', 'email', 'phone'] : columns
+  return '\uFEFF' + Papa.unparse({ fields: [...exportColumns, 'branch'], data: rows }, { escapeFormulae: /^[\t\r\n ]*[=+\-@]|^[\t\r\n]/ })
 }
 
-export function templateCsv() {
-  return '\uFEFF' + Papa.unparse({ fields: columns, data: [] })
+export function templateCsv(kind = 'members') {
+  return '\uFEFF' + Papa.unparse({ fields: kind === 'visitors' ? ['first_name', 'last_name', 'email', 'phone'] : columns, data: [] })
 }
 
 export function filterMembers(members, query, branch, status) {
