@@ -16,7 +16,7 @@ import SupportActivity from './SupportActivity.jsx'
 import ConnectGroups from './ConnectGroups.jsx'
 import { isOrganizationAdmin, personalNavigation, visibleManagementNavigation } from './navigation'
 
-const emptyMember = { first_name: '', last_name: '', email: '', phone: '', branch_id: '', status: 'active' }
+const emptyMember = { first_name: '', last_name: '', email: '', phone: '', date_of_birth: '', branch_id: '', status: 'active' }
 function Brand({ light = false }) {
   return <div className={`brand ${light ? 'brand-light' : ''}`}><span className="brand-mark"><Church size={19} strokeWidth={2.2} /></span><span>afri<span className="brand-accent">church</span><small>CHURCH MANAGEMENT</small></span></div>
 }
@@ -101,6 +101,7 @@ function MemberForm({ member, branches, canSaveBranch, onSave, onClose }) {
     const payload = {
       first_name: form.first_name.trim(), last_name: form.last_name.trim(),
       email: form.email?.trim() || null, phone: form.phone?.trim() || null,
+      date_of_birth: form.date_of_birth || null,
       branch_id: form.branch_id || null, status: form.status,
     }
     if (!payload.first_name || !payload.last_name) {
@@ -122,7 +123,9 @@ function MemberForm({ member, branches, canSaveBranch, onSave, onClose }) {
     <form onSubmit={submit} className="member-form">
       <div className="form-grid"><label>First name<input value={form.first_name} onChange={change('first_name')} maxLength={100} required autoFocus /></label><label>Last name<input value={form.last_name} onChange={change('last_name')} maxLength={100} required /></label></div>
       <div className="form-grid"><label>Email address <span className="optional">Optional</span><input type="email" value={form.email || ''} onChange={change('email')} /></label><label>Phone number <span className="optional">Optional</span><input type="tel" value={form.phone || ''} onChange={change('phone')} /></label></div>
-      <div className="form-grid"><label>Branch<select value={form.branch_id} onChange={change('branch_id')} required={!canSaveBranch(null)}><option value="" disabled={!canSaveBranch(null)}>No branch</option>{branches.filter((branch) => canSaveBranch(branch.id)).map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label>Status<select value={form.status} onChange={change('status')}><option value="active">Active</option><option value="inactive">Inactive</option></select></label></div>
+      <label>Date of birth <span className="optional">Required for self-registration</span><input type="date" value={form.date_of_birth || ''} onChange={change('date_of_birth')} /></label>
+      {member?.user_id && <Notice>Branch, status and deletion are unavailable for linked accounts until account access management is implemented.</Notice>}
+      <div className="form-grid"><label>Branch<select value={form.branch_id} onChange={change('branch_id')} required={!canSaveBranch(null)} disabled={Boolean(member?.user_id)}><option value="" disabled={!canSaveBranch(null)}>No branch</option>{branches.filter((branch) => canSaveBranch(branch.id)).map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label>Status<select value={form.status} onChange={change('status')} disabled={Boolean(member?.user_id)}><option value="active">Active</option><option value="inactive">Inactive</option></select></label></div>
       <div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={onClose}>Cancel</button><button className="button button-dark" disabled={busy} aria-busy={busy}><ActionLabel busy={busy} pending="Saving…">Save member</ActionLabel>{!busy && <ArrowRight size={16} />}</button></div>
     </form>
   </Modal>
@@ -147,6 +150,8 @@ function Workspace({ session }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [deletingId, setDeletingId] = useState('')
+  const [registrationError, setRegistrationError] = useState('')
+  const [registrationBusy, setRegistrationBusy] = useState(false)
 
   const loadOrganizations = useCallback(async () => {
     const [ownerResult, orgResult] = await Promise.all([
@@ -164,9 +169,27 @@ function Workspace({ session }) {
 
   useEffect(() => {
     let active = true
-    loadOrganizations().catch((err) => { if (active) setError(err.message) }).finally(() => { if (active) setLoading(false) })
+    async function initialize() {
+      if (session.user.user_metadata?.individual_registration) {
+        const { error: completionError } = await supabase.rpc('complete_individual_registration')
+        if (active && completionError) setRegistrationError(completionError.message)
+      }
+      await loadOrganizations()
+    }
+    initialize().catch((err) => { if (active) setError(err.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [loadOrganizations])
+  }, [loadOrganizations, session.user.user_metadata])
+
+  async function retryRegistration() {
+    setRegistrationError(''); setRegistrationBusy(true)
+    try {
+      const { error: completionError } = await supabase.rpc('complete_individual_registration')
+      if (completionError) throw completionError
+      await loadOrganizations()
+      setNotice('Your registration is complete.')
+    } catch (err) { setRegistrationError(err.message || 'Unable to complete your registration.') }
+    finally { setRegistrationBusy(false) }
+  }
 
   const loadOrgData = useCallback(async (id) => {
     const [memberResult, branchResult, assignmentResult] = await Promise.all([
@@ -301,7 +324,7 @@ function Workspace({ session }) {
     <div className="workspace">
       <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <strong>{pageTitle}</strong></div><div className="topbar-right">{owner && <span className="owner-badge"><ShieldCheck size={14} /> Platform owner</span>}{!owner && orgAdmin && <span className="owner-badge"><ShieldCheck size={14} /> Organization admin</span>}<span className="top-avatar">{firstName[0].toUpperCase()}</span></div></header>
       <main className="main-content">
-        {error && <Notice error>{error}</Notice>}{notice && <Notice><Check size={16} /> {notice}</Notice>}
+        {error && <Notice error>{error}</Notice>}{registrationError && <div className="notice notice-error" role="alert">Registration is not complete: {registrationError} <button className="text-button" disabled={registrationBusy} onClick={retryRegistration}><ActionLabel busy={registrationBusy} pending="Retrying…">Retry registration</ActionLabel></button></div>}{notice && <Notice><Check size={16} /> {notice}</Notice>}
         <div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-dot" /> {page === 'dashboard' ? 'YOUR CHURCH, CONNECTED' : 'YOUR WORKSPACE'}</div><h1>{page === 'dashboard' ? `Welcome back, ${firstName}.` : pageTitle}</h1><p>{page === 'dashboard' ? 'Here’s a little overview of your community.' : page === 'members' ? 'A thoughtful home for the people who make your church.' : 'Your church community, in one place.'}</p></div>
           <div className="heading-actions">{organizations.length > 0 && <label className="select-wrap"><span className="sr-only">Choose church</span><Building2 size={16} /><select value={orgId} onChange={(e) => { setOrgId(e.target.value); setNotice('') }}>{organizations.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>}{owner && <button className="button button-outline" onClick={() => { setError(''); setModal('organization') }}><Plus size={16} /> New church</button>}{org && canCreate && <button className="button button-dark" onClick={() => setModal('add')}><Plus size={17} /> Add member</button>}</div>
         </div>
