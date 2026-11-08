@@ -19,6 +19,7 @@ import MemberImport, { downloadCsv } from './MemberImport.jsx'
 import Visitors from './Visitors.jsx'
 import { AttendanceManagement, SelfAttendance } from './Attendance.jsx'
 import ChurchTeams from './ChurchTeams.jsx'
+import ChurchRoles from './ChurchRoles.jsx'
 import { filterMembers, memberCsv } from './memberCsv'
 import { isOrganizationAdmin, personalNavigation, visibleManagementNavigation } from './navigation'
 
@@ -312,6 +313,10 @@ function Workspace({ session }) {
     if (loadError) throw new Error(loadError.message)
     setBranches(data)
   }
+  async function refreshAccess() {
+    const data = await loadOrgData(orgId)
+    setMembers(data.members); setBranches(data.branches); setAssignments(data.assignments)
+  }
 
   return <div className="app-shell">
     <button className="mobile-menu icon-button" aria-label="Open menu" onClick={() => setMenuOpen(!menuOpen)}><Menu size={21} /></button>
@@ -326,7 +331,7 @@ function Workspace({ session }) {
         <div className="nav-label nav-label-spaced">MY CHURCH</div>
         {personalNavigation.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><HeartHandshake size={18} /> {item.label}</button>)}
         {managementNav.length > 0 && <div className="nav-label nav-label-spaced">MANAGEMENT</div>}
-        {managementNav.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><Users size={18} /> {item.label}{!['members', 'visitors', 'branches', 'membership-requests', 'attendance', 'ministries', 'departments'].includes(item.id) && !(owner && item.id === 'audit') && <span className="nav-soon">Soon</span>}</button>)}
+        {managementNav.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><Users size={18} /> {item.label}{!['members', 'visitors', 'branches', 'membership-requests', 'attendance', 'ministries', 'departments', 'roles'].includes(item.id) && !(owner && item.id === 'audit') && <span className="nav-soon">Soon</span>}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-note"><Sparkles size={17} /><strong>Built for belonging.</strong><p>A little more space for the things that matter.</p></div><button className="user-button" onClick={signOut} disabled={signingOut} aria-busy={signingOut}><span className="avatar">{firstName[0].toUpperCase()}</span><span className="user-info"><strong>{firstName}</strong><small><ActionLabel busy={signingOut} pending="Signing out…">Sign out</ActionLabel></small></span>{!signingOut && <LogOut size={17} />}</button></div>
     </aside>
@@ -357,7 +362,8 @@ function Workspace({ session }) {
           {pageAvailable && page === 'visitors' && <Visitors key={orgId} orgId={orgId} branches={branches} owner={owner} assignments={assignments} Modal={Modal} Notice={Notice} />}
           {pageAvailable && page === 'attendance' && <AttendanceManagement key={orgId} orgId={orgId} branches={branches} owner={owner} assignments={assignments} />}
           {pageAvailable && ['ministries', 'departments'].includes(page) && <ChurchTeams key={`${orgId}-${page}`} orgId={orgId} kind={page === 'ministries' ? 'ministry' : 'department'} branches={branches} canAdmin={orgAdmin} />}
-          {page !== 'dashboard' && page !== 'members' && page !== 'branches' && !(pageAvailable && ['membership-requests', 'visitors', 'attendance', 'ministries', 'departments'].includes(page)) && <section className="empty-workspace"><span className="empty-icon"><Sparkles size={24} /></span><h2>{pageTitle}</h2><p>{pageAvailable ? 'This workspace area is not implemented yet. Its navigation is shown according to your permissions.' : 'Your current assignments do not grant access to this area.'}</p></section>}
+          {pageAvailable && page === 'roles' && <ChurchRoles key={orgId} orgId={orgId} branches={branches} canAdmin={orgAdmin} onAccessChanged={refreshAccess} />}
+          {page !== 'dashboard' && page !== 'members' && page !== 'branches' && !(pageAvailable && ['membership-requests', 'visitors', 'attendance', 'ministries', 'departments', 'roles'].includes(page)) && <section className="empty-workspace"><span className="empty-icon"><Sparkles size={24} /></span><h2>{pageTitle}</h2><p>{pageAvailable ? 'This workspace area is not implemented yet. Its navigation is shown according to your permissions.' : 'Your current assignments do not grant access to this area.'}</p></section>}
         </>}
         <footer className="content-footer"><span>Made for the work that matters <span>✳</span></span><span>AFRICHURCH / YOUR COMMUNITY</span></footer>
       </main>
