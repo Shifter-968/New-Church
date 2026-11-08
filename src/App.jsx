@@ -15,6 +15,8 @@ import MyChurch from './MyChurch.jsx'
 import SupportActivity from './SupportActivity.jsx'
 import ConnectGroups from './ConnectGroups.jsx'
 import MembershipReviews from './MembershipReviews.jsx'
+import MemberImport, { downloadCsv } from './MemberImport.jsx'
+import { filterMembers, memberCsv } from './memberCsv'
 import { isOrganizationAdmin, personalNavigation, visibleManagementNavigation } from './navigation'
 
 const emptyMember = { first_name: '', last_name: '', email: '', phone: '', phone_2: '', date_of_birth: '', branch_id: '', status: 'active' }
@@ -142,6 +144,8 @@ function Workspace({ session }) {
   const [members, setMembers] = useState([])
   const [page, setPage] = useState('dashboard')
   const [query, setQuery] = useState('')
+  const [branchFilter, setBranchFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [modal, setModal] = useState(null)
   const [newOrg, setNewOrg] = useState('')
   const [error, setError] = useState('')
@@ -209,7 +213,7 @@ function Workspace({ session }) {
 
   useEffect(() => {
     let active = true
-    setMembers([]); setBranches([]); setAssignments([]); setQuery('')
+    setMembers([]); setBranches([]); setAssignments([]); setQuery(''); setBranchFilter('all'); setStatusFilter('all')
     if (!orgId) { setOrgLoading(false); return () => { active = false } }
     setOrgLoading(true)
     setError('')
@@ -296,13 +300,10 @@ function Workspace({ session }) {
   const currentPage = [...personalNavigation, ...managementNav].find((item) => item.id === page)
   const pageAvailable = page === 'dashboard' || (['applications', 'plans'].includes(page) && owner) || Boolean(currentPage)
   const pageTitle = page === 'dashboard' ? 'Overview' : page === 'applications' && owner ? 'Church applications' : page === 'plans' && owner ? 'Plans & billing' : currentPage?.label || 'Access changed'
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return members.filter((member) => [member.first_name, member.last_name, member.email, member.phone].some((value) => value?.toLowerCase().includes(needle)))
-  }, [members, query])
+  const filtered = useMemo(() => filterMembers(members, query, branchFilter, statusFilter), [members, query, branchFilter, statusFilter])
   const activeCount = members.filter((member) => member.status === 'active').length
   const firstName = session.user.user_metadata?.full_name?.split(' ')[0] || session.user.email?.split('@')[0] || 'there'
-  const navigate = (next) => { setPage(next); setMenuOpen(false); setNotice('') }
+  const navigate = (next) => { setPage(next); setMenuOpen(false); setNotice(''); if (next === 'dashboard') { setBranchFilter('all'); setStatusFilter('all') } }
   async function refreshBranches() {
     const { data, error: loadError } = await supabase.from('branches').select('id, name').eq('organization_id', orgId).order('name')
     if (loadError) throw new Error(loadError.message)
@@ -341,9 +342,10 @@ function Workspace({ session }) {
           </>}
           {pageAvailable && (page === 'dashboard' || page === 'members') && canViewMembers && <section className="directory">
             <div className="section-title directory-heading"><div><span className="section-kicker">PEOPLE & COMMUNITY</span><h2>{page === 'dashboard' ? 'Your church family' : 'Member directory'}</h2><p>Every name has a story. Keep yours connected.</p></div>{page === 'dashboard' && <button className="text-button" onClick={() => navigate('members')}>View all members <ArrowRight size={16} /></button>}</div>
-            <div className="directory-card"><div className="directory-toolbar"><div><strong>All members</strong><span className="count-pill">{filtered.length}</span></div><label className="search"><Search size={17} /><span className="sr-only">Search members</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people..." /></label></div>
-              {members.length === 1000 && <Notice>Showing up to 1,000 accessible members. Search currently covers only those shown.</Notice>}
-              {filtered.length === 0 ? <div className="empty-members"><div className="empty-icon"><Users size={24} /></div><h3>{query ? 'No people found' : 'Your directory starts here'}</h3><p>{query ? 'Try another name, email, or phone number.' : 'Members you have permission to see will appear here.'}</p>{!query && canCreate && <button className="text-button" onClick={() => setModal('add')}>Add your first member <ArrowRight size={15} /></button>}</div> :
+            <div className="directory-card"><div className="directory-toolbar"><div><strong>Members shown</strong><span className="count-pill">{filtered.length}</span></div><label className="search"><Search size={17} /><span className="sr-only">Search members</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people..." /></label></div>
+              {page === 'members' && <div className="member-tools"><label>Branch<select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}><option value="all">All branches</option><option value="unassigned">No branch</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label>Status<select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label><button className="button button-outline" disabled={!filtered.length} onClick={() => downloadCsv('members.csv', memberCsv(filtered, branches))}>Export shown CSV</button>{canCreate && <button className="button button-outline" onClick={() => setModal('import')}>Import CSV</button>}</div>}
+              <Notice>Directory loads at most 1,000 accessible members. Search, filters and export only cover the loaded records.</Notice>
+              {filtered.length === 0 ? <div className="empty-members"><div className="empty-icon"><Users size={24} /></div><h3>{query || branchFilter !== 'all' || statusFilter !== 'all' ? 'No people found' : 'Your directory starts here'}</h3><p>{query || branchFilter !== 'all' || statusFilter !== 'all' ? 'Try another search or filter.' : 'Members you have permission to see will appear here.'}</p>{!query && branchFilter === 'all' && statusFilter === 'all' && canCreate && <button className="text-button" onClick={() => setModal('add')}>Add your first member <ArrowRight size={15} /></button>}</div> :
                 <div className="table-scroll"><table><thead><tr><th>MEMBER</th><th>CONTACT</th><th>BRANCH</th><th>STATUS</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{(page === 'dashboard' ? filtered.slice(0, 5) : filtered).map((member) => <tr key={member.id}><td><div className="member-name"><span className="member-avatar">{member.first_name[0]}{member.last_name[0]}</span><strong>{member.first_name} {member.last_name}</strong></div></td><td><span>{member.email || '—'}</span><small>{member.phone || ''}</small></td><td>{branches.find((branch) => branch.id === member.branch_id)?.name || '—'}</td><td><span className={`status ${member.status}`}><span />{member.status}</span></td><td><div className="row-actions">{can('update', member.branch_id) && <button disabled={Boolean(deletingId)} onClick={() => setModal(member)}>Edit</button>}{can('delete', member.branch_id) && <button disabled={Boolean(deletingId)} aria-busy={deletingId === member.id} onClick={() => deleteMember(member)}><ActionLabel busy={deletingId === member.id} pending="Removing…">Remove</ActionLabel></button>}</div></td></tr>)}</tbody></table></div>}
             </div>
           </section>}
@@ -355,7 +357,8 @@ function Workspace({ session }) {
       </main>
     </div>
     {modal === 'organization' && <Modal title="Create a church" description="Start a fresh workspace for your church community." onClose={() => setModal(null)} busy={busy}>{error && <Notice error>{error}</Notice>}<form onSubmit={createOrg} className="member-form"><label>Church name<input autoFocus maxLength={120} required value={newOrg} onChange={(e) => setNewOrg(e.target.value)} placeholder="e.g. Grace Community Church" /></label><div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={() => setModal(null)}>Cancel</button><button className="button button-dark" disabled={busy} aria-busy={busy}><ActionLabel busy={busy} pending="Creating…">Create workspace</ActionLabel>{!busy && <ArrowRight size={16} />}</button></div></form></Modal>}
-    {modal && modal !== 'organization' && <MemberForm member={modal === 'add' ? null : modal} branches={branches} canSaveBranch={(branchId) => can(modal === 'add' ? 'create' : 'update', branchId)} onSave={saveMember} onClose={() => setModal(null)} />}
+    {modal === 'import' && <MemberImport key={orgId} orgId={orgId} branches={branches} canCreate={(branchId) => can('create', branchId)} Modal={Modal} Notice={Notice} onClose={() => setModal(null)} onImported={async (count) => { setModal(null); setNotice(`${count} members imported.`); try { await refreshMembers() } catch (err) { setError(`Import completed, but the list could not be refreshed: ${err.message}`) } }} />}
+    {modal && modal !== 'organization' && modal !== 'import' && <MemberForm member={modal === 'add' ? null : modal} branches={branches} canSaveBranch={(branchId) => can(modal === 'add' ? 'create' : 'update', branchId)} onSave={saveMember} onClose={() => setModal(null)} />}
   </div>
 }
 
