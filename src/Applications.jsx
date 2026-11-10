@@ -25,6 +25,20 @@ export default function Applications({ onApproved }) {
     }).catch((loadError) => { if (active) { setError(loadError.message || 'Unable to load applications.'); setLoading(false) } })
     return () => { active = false }
   }, [])
+  async function downloadReceipt(application) {
+    if (busy) return
+    setError(''); setMessage(''); setBusy({ id: application.id, decision: 'download' })
+    try {
+      const { data, error: downloadError } = await supabase.storage.from('registration-payment-proofs').download(`${application.applicant_user_id}/receipt`)
+      if (downloadError) throw downloadError
+      const extension = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png' }[data.type] || 'bin'
+      const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }))
+      const link = document.createElement('a')
+      link.href = url; link.download = `payment-proof-${application.id}.${extension}`; link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (downloadError) { setError(downloadError.message || 'Unable to download the payment proof.') }
+    finally { setBusy(null) }
+  }
   async function review(application, decision) {
     const confirmation = decision === 'approved' && application.requested_plan_id
       ? `Approve ${application.organization_name} and assign the requested plan? Independently verify the payment first; the receipt and reference do not prove payment.`
@@ -37,20 +51,6 @@ export default function Applications({ onApproved }) {
       else {
         setMessage(`Application ${decision}.`)
         try { await Promise.all([load(), onApproved()]) } catch (refreshError) { setError(`Decision saved, but refresh failed: ${refreshError.message}`) }
-      }
-      async function downloadReceipt(application) {
-        if (busy) return
-        setError(''); setMessage(''); setBusy({ id: application.id, decision: 'download' })
-        try {
-          const { data, error: downloadError } = await supabase.storage.from('registration-payment-proofs').download(`${application.applicant_user_id}/receipt`)
-          if (downloadError) throw downloadError
-          const extension = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png' }[data.type] || 'bin'
-          const url = URL.createObjectURL(new Blob([data], { type: 'application/octet-stream' }))
-          const link = document.createElement('a')
-          link.href = url; link.download = `payment-proof-${application.id}.${extension}`; link.click()
-          setTimeout(() => URL.revokeObjectURL(url), 1000)
-        } catch (downloadError) { setError(downloadError.message || 'Unable to download the payment proof.') }
-        finally { setBusy(null) }
       }
     } catch (reviewError) {
       setError(reviewError.message || 'Unable to review the application. Please try again.')
