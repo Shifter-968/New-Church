@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import ActionLabel from './ActionLabel'
+import ConnectAnnouncements from './ConnectAnnouncements'
 import './connect.css'
 
 export default function ConnectConversation({ group, userId, support, onChanged, onClose }) {
@@ -79,6 +80,7 @@ export default function ConnectConversation({ group, userId, support, onChanged,
   return <section className="directory-card my-card connect-detail">
     <div className="connect-detail-heading"><div><h2>{group.name}</h2><p>Connect members and conversation</p></div><div className="my-item-actions"><button className="button button-outline" disabled={Boolean(busy)} onClick={() => setRefresh((value) => value + 1)}>Refresh</button><button className="button button-outline" disabled={Boolean(busy)} onClick={onClose}>Close</button></div></div>
     {error && <div className="notice notice-error" role="alert">{error}</div>}{notice && <div className="notice" role="status">{notice}</div>}
+    <ConnectAnnouncements group={group} />
     {loading ? <p>Loading Connect…</p> : loadFailed ? null : <div className="connect-columns">
       <section><h3>Members</h3><p className="connect-hint">Only the creator can promote or demote group admins. Church administrators can help manage membership.</p>
         <div className="my-list">{members.map((member) => <article className="my-list-item" key={member.user_id}><div><h3>{member.display_name}</h3>{member.email && <small>{member.email}</small>}<small>{member.role.toLowerCase()} · {member.status.toLowerCase()}</small></div>

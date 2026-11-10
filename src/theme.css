@@ -1,0 +1,147 @@
+:root {
+  --ink: #292b2e;
+  --muted: #656a70;
+  --silver: #f3f4f4;
+  --surface: #fff;
+  --line: #dedfe0;
+  --gold: #8b682b;
+  --gold-light: #f5ecd9;
+  --charcoal: #28292b;
+  color: var(--ink);
+  background: #f5f5f4;
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
+  outline: 3px solid #b98c3f;
+  outline-offset: 3px;
+}
+label { color: #4a4b4d; }
+input, select, textarea, .my-form textarea, .plan-modal textarea {
+  border-color: #d7d9da;
+  color: #292b2e;
+  background-color: #fff;
+}
+input::placeholder, textarea::placeholder { color: #767b80; }
+
+.public-app, .auth-page { background: #f8f8f7; color: var(--ink); }
+.app-shell, .workspace { background: #f4f4f3; color: var(--ink); }
+.public-header, .sidebar, .topbar { background: #fff; border-color: var(--line); }
+.public-logo, .brand, .public-hero h1, .registration-heading h1,
+.public-intro h2, .public-bottom-cta h2, .gateway-card h2,
+.auth-content h1, .page-heading h1, .section-title h2 { color: #292b2e; }
+.public-logo > span, .brand-mark, .hero-church, .art-center, .banner-church {
+  color: #f5e4bd;
+  background: linear-gradient(145deg, #343537, #18191a);
+}
+.brand-accent, .public-logo strong > span, .public-hero h1 em,
+.registration-heading h1 em, .public-intro h2 em, .public-bottom-cta h2 em,
+.auth-content h1 em, .aside-bottom h2 span, .banner-copy h2 em,
+.registration-summary h2 em { color: #8b682b; }
+.public-kicker, .eyebrow, .section-kicker, .gateway-action,
+.back-link, .auth-back, .auth-register, .registration-footnote button,
+.preview-link, .text-button { color: #80602a; }
+.public-dot, .eyebrow-dot, .unread-dot { background: #b88d43; }
+
+.public-primary, .button-dark {
+  background: #292a2c;
+  color: #fff;
+  box-shadow: 0 5px 16px #22232618;
+}
+.public-primary:hover:not(:disabled), .button-dark:hover:not(:disabled) {
+  background: #49412f;
+}
+.public-secondary, .button-outline, .public-header-button {
+  background: #fff;
+  border: 1px solid #d5d6d7;
+  color: #424345;
+}
+.public-secondary:hover:not(:disabled), .button-outline:hover:not(:disabled),
+.public-header-button:hover:not(:disabled) { background: #f7f2e8; border-color: #c5aa78; }
+
+.public-hero-visual, .auth-aside, .welcome-banner, .registration-summary {
+  background: linear-gradient(140deg, #ededeb 0%, #dcdedd 58%, #e8dfcd 100%);
+  color: #292b2e;
+}
+.hero-orbit, .art-ring, .banner-circle { border-color: #bfc1bf; }
+.hero-church, .art-center, .banner-church { box-shadow: 0 20px 42px #32323230; }
+.public-icon, .stat-icon, .workspace-icon, .art-icon, .lock-icon,
+.avatar, .top-avatar, .member-avatar, .empty-icon, .summary-icon {
+  background: #eceeed;
+  color: #6b604c;
+}
+.gold-icon, .art-icon.gold, .stat-icon.peach { background: #f6ecd9; color: #886528; }
+.public-header nav a, .public-header nav button, .public-hero-copy > p,
+.public-intro > p, .feature-card p, .gateway-card p, .registration-heading p,
+.registration-card > p, .auth-description, .auth-help, .aside-bottom p,
+.page-heading p, .section-title p, .my-card > p, .my-card-heading p,
+.my-list-item p, .branch-card p, .plan-card p { color: #656a70; }
+.public-header nav a:hover, .public-header nav button:hover { color: #80602a; }
+.public-hero-note, .public-footer, .visual-caption, .auth-footer,
+.card-heading p, .modal-heading p, .my-list-item small, td small,
+.connect-hint, .connect-detail-heading p { color: #70747a; }
+.public-hero-note strong, .aside-top, .aside-bottom small, .banner-copy p,
+.registration-summary > p, .registration-summary li { color: #55595c; }
+.aside-bottom h2, .banner-copy h2, .registration-summary h2 { color: #292b2e; }
+.aside-line, .summary-line { background: #c4c6c5; }
+.visual-caption { border-color: #c4c6c5; }
+.public-bottom-cta { background: linear-gradient(120deg, #ededeb, #f3e8d1); }
+.tiny-people i { background: #dedfdf; color: #666; border-color: #f8f8f7; }
+.tiny-people i:nth-child(2) { background: #eee1c8; color: #84652f; }
+.tiny-people i:nth-child(3) { background: #d6d7d9; color: #5a5e62; }
+
+.directory-card, .stat-card, .auth-card, .registration-card, .gateway-card,
+.feature-card, .floating-card, .modal, .public-dialog, .application-card, .plan-card {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: 0 8px 26px #292b2e0b;
+}
+.gateway-card:hover { border-color: #b89a64; box-shadow: 0 12px 30px #322b1f18; }
+.public-overlay, .modal-backdrop { background: #17191c80; }
+.public-search, .field-search, .search { border-color: #d5d7d7; color: #75787b; }
+.public-search:focus-within, .field-search:focus-within { outline-color: #b98c3f; }
+.church-result:hover, .nav-item:not(.nav-disabled):hover { background: #f4f1eb; }
+.workspace-picker, .sidebar-note, .plan-placeholder, .connect-announcements {
+  background: #f3f3f1;
+  border-color: #dedfdd;
+  color: #56595b;
+}
+.workspace-name span, .sidebar-note strong, .user-info strong, .breadcrumb strong,
+.directory-toolbar strong, .my-card > strong { color: #393b3d; }
+.nav-item, .user-button, .breadcrumb, .nav-label, .workspace-name small,
+.sidebar-note, .sidebar-note p, .owner-badge { color: #6b6e72; }
+.nav-item.selected { background: #f4ecdc; color: #72531f; }
+.nav-disabled, .nav-disabled span { color: #8a8d91; }
+.notice:not(.notice-error) { background: #f3eee1; color: #5f4a24; }
+.notice-error { background: #fff1ef; color: #923c32; }
+.status { background: #edf2eb; color: #3b6641; }
+.status.inactive { background: #f1f1f0; color: #64676a; }
+.my-list-item, th, td, .application-card, .form-divider:after { border-color: #e4e4e2; }
+.connect-message { background: #f0f1f1; }
+.connect-message-own { background: #f3ead9; }
+.connect-message small, .connect-columns form small { color: #6c6d6e; }
+.connect-announcement p { color: #55595d; }
+.banner-tag, .banner-sparkle, .public-sparkle, .quote-mark { color: #96713a; }
+.registration-summary .public-kicker, .registration-summary li svg { color: #80602a; }
+.registration-summary .summary-check { color: #3e4041; }
+.registration-summary .summary-note { background: #e7e0d1; color: #4a453b; }
+.registration-summary .public-primary { background: #292a2c; color: #fff; }
+.registration-summary .public-primary:hover:not(:disabled) { background: #49412f; }
+.field-label, .member-tools label, .member-tools select { color: #4a4b4d; }
+.field-label small, .optional, .gateway-top, .registration-footnote,
+.google-placeholder small, .form-divider, .public-search-status,
+.section-caption, .stat-card p, .content-footer, .plan-price small,
+.plan-limits, .plan-form-hint, .empty-members p, .empty-workspace p { color: #70747a; }
+.offline-message, .field-hint { background: #f3f1ec; color: #5d5a52; }
+.plan-placeholder p { color: #686a6b; }
+.plan-placeholder button, .selected-church button, .public-footer button:not(.public-logo),
+.banner-copy button, .row-actions button { color: #80602a; }
+.public-close, .icon-button, .select-wrap, .stat-top, .loading, .app-loading { color: #73777b; }
+.member-name, .empty-members h3, .empty-workspace h2, .art-label, .church-result { color: #393b3d; }
+.public-footer button.footer-sign-in { width: 44px; height: 44px; justify-content: center; border-radius: 50%; }
+.public-footer button.footer-sign-in:hover { background: #f3ead9; }
+.art-label small, .floating-card small { color: #70747a; }
+th, td { color: #666a6e; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}

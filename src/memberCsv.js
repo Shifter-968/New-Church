@@ -11,8 +11,8 @@ export function possibleDuplicateRows(people) {
     const first = person.first_name.trim().toLowerCase()
     const last = person.last_name.trim().toLowerCase()
     const email = (person.email || '').trim().toLowerCase()
-    const phone = (person.phone || '').replace(/[^0-9]/g, '')
-    const keys = [`name:${first}\u0000${last}`, ...(email ? [`email:${email}`] : []), ...(phone ? [`phone:${phone}`] : [])]
+    const phones = [person.phone, person.phone_2].map((phone) => (phone || '').replace(/[^0-9]/g, '')).filter(Boolean)
+    const keys = new Set([`name:${first}\u0000${last}`, ...(email ? [`email:${email}`] : []), ...phones.map((phone) => `phone:${phone}`)])
     for (const key of keys) {
       if (seen.has(key)) { duplicates.add(seen.get(key)); duplicates.add(index + 2) }
       else seen.set(key, index + 2)

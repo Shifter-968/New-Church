@@ -6,6 +6,7 @@ import ActionLabel from './ActionLabel'
 import MemberImport, { downloadCsv } from './MemberImport'
 import { filterMembers, memberCsv } from './memberCsv'
 import { findVisitorDuplicates } from './visitorDuplicates'
+import VisitorRegistrationReviews from './VisitorRegistrationReviews'
 
 const emptyVisitor = { first_name: '', last_name: '', email: '', phone: '', branch_id: '' }
 
@@ -100,8 +101,10 @@ export default function Visitors({ orgId, branches, owner, assignments, Modal, N
     finally { setDeleting('') }
   }
 
+  const canReview = can('update', null) || branches.some((item) => can('update', item.id))
   return <section className="directory">
     {error && <Notice error>{error}</Notice>}{notice && <Notice>{notice}</Notice>}
+    {canReview && <VisitorRegistrationReviews orgId={orgId} branches={branches} />}
     <div className="section-title directory-heading"><div><span className="section-kicker">PEOPLE & COMMUNITY</span><h2>Visitor directory</h2><p>Welcome and stay connected with your visitors.</p></div>{canCreate && <button className="button button-dark" onClick={() => setModal('add')}><Plus size={16} /> Add visitor</button>}</div>
     <div className="directory-card"><div className="directory-toolbar"><div><strong>Visitors shown</strong><span className="count-pill">{filtered.length}</span></div><label className="search"><Search size={17} /><span className="sr-only">Search visitors</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people..." /></label></div>
       <div className="member-tools"><label>Branch<select value={branch} onChange={(event) => setBranch(event.target.value)}><option value="all">All branches</option><option value="unassigned">No branch</option>{branches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button className="button button-outline" disabled={!filtered.length} onClick={() => downloadCsv('visitors.csv', memberCsv(filtered, branches, 'visitors'))}>Export shown CSV</button>{canCreate && <button className="button button-outline" onClick={() => setModal('import')}>Import CSV</button>}</div>

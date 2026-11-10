@@ -45,6 +45,16 @@ test('flags possible duplicates within visitor imports by name, email or normali
   assert.deepEqual(possibleDuplicateRows(rows), [2, 3, 4, 5])
 })
 
+test('flags either member phone across records without flagging one record against itself', () => {
+  const rows = [
+    { first_name: 'A', last_name: 'One', phone: '123-45', phone_2: '123 45' },
+    { first_name: 'B', last_name: 'Two', phone_2: '12345' },
+    { first_name: 'C', last_name: 'Three', phone: '555', phone_2: '555' },
+  ]
+  assert.deepEqual(possibleDuplicateRows(rows), [2, 3])
+  assert.deepEqual(possibleDuplicateRows(rows.slice(2)), [])
+})
+
 test('filters full names, both phones, branch and status together', () => {
   const list = [{ first_name: 'Jane', last_name: 'Doe', phone_2: '555', branch_id: 'a', status: 'active' }, { first_name: 'John', last_name: 'Doe', branch_id: null, status: 'inactive' }]
   assert.equal(filterMembers(list, 'jane doe', 'a', 'active').length, 1)

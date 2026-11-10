@@ -16,3 +16,11 @@ test('branch administrator and member see only granted management modules', () =
   assert.ok(!ids.includes('audit'))
   assert.deepEqual(visibleManagementNavigation(false, []), [])
 })
+
+test('absence notices require their own permission in navigation', () => {
+  const assignments = [{ branch_id: 'a', roles: { is_org_admin: false, permissions: ['attendance.absences.view'] } }]
+  const ids = visibleManagementNavigation(false, assignments).map((item) => item.id)
+  assert.ok(ids.includes('absences'))
+  assert.ok(!ids.includes('attendance'))
+  assert.ok(!visibleManagementNavigation(false, [{ branch_id: 'a', roles: { permissions: ['attendance.view'] } }]).some((item) => item.id === 'absences'))
+})

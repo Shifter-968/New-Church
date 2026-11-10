@@ -33,6 +33,8 @@ export default function ConnectGroups({ orgId, organizations, owner, canAdmin, u
       if (resultError) { setItems([]); setLoadError(`Unable to load Connects: ${resultError.message}`) }
       else setItems(data)
       setLoading(false)
+    }).catch((err) => {
+      if (active) { setItems([]); setLoadError(`Unable to load Connects: ${err.message || 'Please try again.'}`); setLoading(false) }
     })
     return () => { active = false }
   }, [filter, reload])
@@ -80,7 +82,7 @@ export default function ConnectGroups({ orgId, organizations, owner, canAdmin, u
     } catch (joinError) { setError(joinError.message || 'Unable to join the Connect.') } finally { setBusy('') }
   }
   async function remove(item) {
-    if (!window.confirm(`Permanently delete "${item.name}", its memberships and all messages?`)) return
+    if (!window.confirm(`Permanently delete "${item.name}", its memberships, announcements and all messages?`)) return
     setError(''); setMessage(''); setBusy(item.id)
     try {
       const { error: deleteError } = await supabase.rpc('delete_connect_group', { target_id: item.id })
@@ -90,13 +92,23 @@ export default function ConnectGroups({ orgId, organizations, owner, canAdmin, u
       setMessage('Connect deleted.'); setReload((value) => value + 1)
     } catch (deleteError) { setError(deleteError.message || 'Unable to delete the Connect.') } finally { setBusy('') }
   }
+  async function leave(item) {
+    if (busy || !window.confirm(`Leave "${item.name}"? You will lose access to its conversation. You can rejoin with a code if eligible.`)) return
+    setError(''); setMessage(''); setBusy(`leave:${item.id}`)
+    try {
+      const { error: leaveError } = await supabase.rpc('leave_connect_group', { target_id: item.id })
+      if (leaveError) throw leaveError
+      if (selectedId === item.id) setSelectedId(null)
+      setMessage('You left the Connect.'); setReload((value) => value + 1)
+    } catch (leaveError) { setError(leaveError.message || 'Unable to leave the Connect.') } finally { setBusy('') }
+  }
   const selected = items.find((item) => item.id === selectedId)
   return <><div className="my-church-layout"><section className="directory-card my-card">
     <div className="my-card-heading"><span className="stat-icon mint"><HeartHandshake size={20} /></span><div><h2>{owner ? 'Connect support' : 'Your Connects'}</h2><p>{owner ? 'Manage Connect groups across churches without joining them.' : 'Your groups and, for church administrators, groups in your church.'} Showing up to 100.</p></div></div>
     <p>Manage members and exchange text messages. Media and direct chats are not available yet.</p>
     {owner && <label>Filter by church<select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="">All churches</option>{organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>}
     {loadError && <div className="notice notice-error" role="alert">{loadError}</div>}{branchError && <div className="notice notice-error" role="alert">{branchError}</div>}{error && <div className="notice notice-error" role="alert">{error}</div>}{message && <div className="notice" role="status">{message}</div>}
-    {loading ? <p>Loading Connects…</p> : loadError ? null : !items.length ? <p>No Connects available yet.</p> : <div className="my-list">{items.map((item) => <article className="my-list-item" key={item.id}><div><h3>{item.name}</h3><small>{organizations.find((org) => org.id === item.organization_id)?.name || 'Church unavailable'} · {item.branch_name || 'Entire church'} · {item.status.toLowerCase()} · {item.member_count} members</small><p>{item.description}</p>{item.owner_email && <small>Owner: {item.owner_email}</small>}{item.join_code && <small>Join code: {item.join_code}</small>}</div><div className="my-item-actions"><button className="text-button" disabled={Boolean(busy)} onClick={() => setSelectedId(item.id)}>Open</button>{(administrator || item.my_role === 'CREATOR') && <><button className="text-button" disabled={Boolean(busy)} onClick={() => edit(item)}>Edit</button><button className="text-button" disabled={Boolean(busy)} onClick={() => remove(item)}><ActionLabel busy={busy === item.id} pending="Deleting…">Delete</ActionLabel></button></>}</div></article>)}</div>}
+    {loading ? <p>Loading Connects…</p> : loadError ? null : !items.length ? <p>No Connects available yet.</p> : <div className="my-list">{items.map((item) => <article className="my-list-item" key={item.id}><div><h3>{item.name}</h3><small>{organizations.find((org) => org.id === item.organization_id)?.name || 'Church unavailable'} · {item.branch_name || 'Entire church'} · {item.status.toLowerCase()} · {item.member_count} members</small><p>{item.description}</p>{item.owner_email && <small>Owner: {item.owner_email}</small>}{item.join_code && <small>Join code: {item.join_code}</small>}{item.my_role === 'CREATOR' && <small>Transfer ownership through a church administrator before leaving.</small>}</div><div className="my-item-actions"><button className="text-button" disabled={Boolean(busy)} onClick={() => setSelectedId(item.id)}>Open</button>{item.my_role && item.my_role !== 'CREATOR' && <button className="text-button" disabled={Boolean(busy)} onClick={() => leave(item)}><ActionLabel busy={busy === `leave:${item.id}`} pending="Leaving…">Leave</ActionLabel></button>}{(administrator || item.my_role === 'CREATOR') && <><button className="text-button" disabled={Boolean(busy)} onClick={() => edit(item)}>Edit</button><button className="text-button" disabled={Boolean(busy)} onClick={() => remove(item)}><ActionLabel busy={busy === item.id} pending="Deleting…">Delete</ActionLabel></button></>}</div></article>)}</div>}
     {!owner && <form className="my-form" onSubmit={join}><label>Join with a code<input value={code} onChange={(event) => setCode(event.target.value)} required maxLength={10} /></label><button className="button button-outline" disabled={Boolean(busy)} aria-busy={busy === 'join'}><ActionLabel busy={busy === 'join'} pending="Joining…">Join Connect</ActionLabel></button></form>}
   </section><section className="directory-card my-card"><h2>{editing ? 'Edit Connect' : 'Create a Connect'}</h2><p>{administrator ? 'Choose an existing, confirmed church account as the Connect owner. The platform owner is not automatically added.' : 'You will be the Connect owner.'}</p>
     <form className="my-form" onSubmit={save}>{owner && <label>Church<select required disabled={Boolean(editing)} value={targetOrg} onChange={(event) => { setTargetOrg(event.target.value); setForm((value) => ({ ...value, branch: '' })) }}><option value="">Select a church</option>{organizations.map((org) => <option value={org.id} key={org.id}>{org.name}</option>)}</select></label>}

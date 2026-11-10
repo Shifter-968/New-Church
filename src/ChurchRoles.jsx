@@ -5,7 +5,7 @@ import ActionLabel from './ActionLabel'
 const permissions = [
   ['members.view', 'View members'], ['members.create', 'Add members'], ['members.update', 'Edit members'], ['members.delete', 'Delete members'],
   ['visitors.view', 'View visitors'], ['visitors.create', 'Add visitors'], ['visitors.update', 'Edit visitors'], ['visitors.delete', 'Delete visitors'],
-  ['attendance.view', 'View attendance'], ['attendance.create', 'Mark attendance'],
+  ['attendance.view', 'View attendance'], ['attendance.create', 'Mark attendance'], ['attendance.absences.view', 'View reported absences and reasons'],
 ]
 
 export default function ChurchRoles({ orgId, branches, canAdmin, onAccessChanged }) {
