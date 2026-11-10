@@ -121,6 +121,10 @@ Churches are discoverable by default; set `organizations.is_discoverable` to fal
 
 Create a Netlify site from a repository containing this folder. Set the base directory to `New Church System` if the folder is not the repository root. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as Netlify environment variables, then deploy. [netlify.toml](netlify.toml) configures the build, publish directory, and single-page app fallback. Add the deployed HTTPS URL to Supabase Authentication's URL configuration and Google OAuth authorized origins. Google sign-in is enabled in the build; no `VITE_GOOGLE_AUTH_ENABLED` variable is needed. Publish active plans from the owner Plans screen to show current pricing in church registration. Do not expose service-role keys.
 
+### Install AfriChurch on a device
+
+The site includes a web app manifest, browser icons and an Apple touch icon. After deploying it over HTTPS, Android and desktop users can install AfriChurch from the browser's **Install app** or **Install this site as an app** option. On iPhone or iPad, open the site in Safari, tap **Share**, then **Add to Home Screen**. iOS does not use Chrome's install prompt; the Safari share-sheet flow is the supported way to add the app icon. The installed shortcut opens AfriChurch in a standalone app-style window; it does not make the site available offline.
+
 Before using real member information, review the Supabase project's security, backups, user provisioning, and access assignments; test row-level security using separate owner, organization, and branch accounts. This initial implementation has not been deployed or tested against your Supabase project.
 
 ## Checks
