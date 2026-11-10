@@ -1,0 +1,232 @@
+.event-calendar-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+    gap: 16px;
+    align-items: start
+}
+
+.event-calendar-panel,
+.event-calendar-editor {
+    min-width: 0
+}
+
+.event-calendar-panel .fc {
+    --fc-border-color: #e7ece5;
+    --fc-button-bg-color: #244c3e;
+    --fc-button-border-color: #244c3e;
+    --fc-button-hover-bg-color: #173a2e;
+    --fc-button-hover-border-color: #173a2e;
+    --fc-button-active-bg-color: #526f5b;
+    --fc-button-active-border-color: #526f5b;
+    --fc-today-bg-color: #f1f6ef;
+    color: #304238;
+    font-size: 12px
+}
+
+.event-calendar-panel .fc .fc-button {
+    border-radius: 7px;
+    box-shadow: none;
+    font-size: 11px
+}
+
+.event-calendar-panel .fc .fc-toolbar-title {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 20px;
+    font-weight: 400
+}
+
+.event-calendar-panel .fc .fc-event {
+    background: #e8f1e7;
+    border-color: #cddfcd;
+    color: #315b3c;
+    cursor: pointer
+}
+
+.event-calendar-panel .fc .fc-timegrid-event {
+    padding: 2px 3px
+}
+
+.event-calendar-entry {
+    display: grid;
+    gap: 2px;
+    overflow: hidden;
+    line-height: 1.3
+}
+
+.event-calendar-entry span,
+.event-calendar-entry small {
+    font-size: 10px
+}
+
+.event-calendar-entry strong {
+    font-size: 11px;
+    overflow-wrap: anywhere
+}
+
+.event-calendar-entry small {
+    opacity: .8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+}
+
+.event-calendar-count {
+    margin-top: 12px;
+    color: #8b9b8e;
+    font-size: 10px
+}
+
+.calendar-search {
+    margin-top: 14px
+}
+
+.event-calendar-editor .my-form {
+    gap: 14px
+}
+
+.event-calendar-editor .form-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 9px
+}
+
+.event-calendar-editor .form-grid input {
+    padding: 10px 8px
+}
+
+.event-map {
+    border: 1px solid #e4eae3;
+    border-radius: 8px;
+    padding: 12px
+}
+
+.event-map summary {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    color: #52675a;
+    font-size: 11px;
+    font-weight: 700;
+    list-style: none
+}
+
+.event-map summary::-webkit-details-marker {
+    display: none
+}
+
+.event-map>p {
+    margin: 8px 0 12px;
+    color: #89968d;
+    font-size: 10px;
+    line-height: 1.5
+}
+
+.event-map-canvas {
+    height: 230px
+}
+
+.event-map-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px
+}
+
+.event-map-footer small {
+    color: #8b9b8e;
+    font-size: 10px;
+    overflow-wrap: anywhere
+}
+
+.event-map-footer button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px
+}
+
+.event-repeat {
+    border: 1px solid #e4eae3;
+    border-radius: 8px;
+    padding: 13px;
+    display: grid;
+    gap: 12px
+}
+
+.event-repeat>legend,
+.event-weekdays>legend {
+    padding: 0 5px;
+    color: #52675a;
+    font-size: 11px;
+    font-weight: 700
+}
+
+.event-repeat label small {
+    display: block;
+    margin-top: 5px;
+    color: #89968d;
+    font-weight: 400
+}
+
+.event-weekdays {
+    border: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px
+}
+
+.event-weekdays>div {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px
+}
+
+.event-weekdays label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px
+}
+
+.event-weekdays input {
+    width: auto;
+    margin: 0
+}
+
+.event-series-note {
+    font-size: 10px;
+    color: #7f9182;
+    line-height: 1.5
+}
+
+@media(max-width:1100px) {
+    .event-calendar-layout {
+        grid-template-columns: 1fr
+    }
+}
+
+@media(max-width:600px) {
+    .event-calendar-panel .fc .fc-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px
+    }
+
+    .event-calendar-panel .fc .fc-toolbar-chunk {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px
+    }
+
+    .event-calendar-panel .fc .fc-button {
+        font-size: 10px;
+        padding: .35em .5em
+    }
+
+    .event-calendar-panel .fc .fc-toolbar-title {
+        font-size: 18px
+    }
+
+    .event-calendar-editor .form-grid {
+        grid-template-columns: 1fr
+    }
+}
