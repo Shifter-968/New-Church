@@ -31,8 +31,10 @@ import OrganizationSettings from './OrganizationSettings.jsx'
 import { findMemberImportDuplicates } from './memberDuplicates'
 import { filterMembers, memberCsv } from './memberCsv'
 import { isOrganizationAdmin, personalNavigation, visibleManagementNavigation } from './navigation'
+import { fetchAllPages } from './supabasePagination'
+import Billing from './Billing.jsx'
 
-const emptyMember = { first_name: '', last_name: '', email: '', phone: '', phone_2: '', date_of_birth: '', branch_id: '', status: 'active' }
+const emptyMember = { first_name: '', last_name: '', email: '', phone: '', phone_2: '', date_of_birth: '', gender: '', residence: '', baptized: false, marital_status: 'SINGLE', branch_id: '', status: 'active' }
 function Brand({ light = false }) {
   return <div className={`brand ${light ? 'brand-light' : ''}`}><span className="brand-mark"><Church size={19} strokeWidth={2.2} /></span><span>afri<span className="brand-accent">church</span><small>CHURCH MANAGEMENT</small></span></div>
 }
@@ -248,7 +250,7 @@ function Modal({ title, description, onClose, children, busy = false }) {
 }
 
 function MemberForm({ member, orgId, branches, canSaveBranch, onSave, onClose }) {
-  const [form, setForm] = useState(member ? { ...member, branch_id: member.branch_id || '' } : emptyMember)
+  const [form, setForm] = useState(member ? { ...member, baptized: member.baptized ?? null, branch_id: member.branch_id || '' } : emptyMember)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [matches, setMatches] = useState([])
@@ -263,11 +265,23 @@ function MemberForm({ member, orgId, branches, canSaveBranch, onSave, onClose })
       first_name: form.first_name.trim(), last_name: form.last_name.trim(),
       email: form.email?.trim() || null, phone: form.phone?.trim() || null,
       phone_2: form.phone_2?.trim() || null,
-      date_of_birth: form.date_of_birth || null,
+      date_of_birth: form.date_of_birth || null, gender: form.gender,
+      marital_status: form.marital_status || null, residence: form.residence == null ? null : form.residence.trim(),
+      baptized: form.baptized == null ? null : Boolean(form.baptized),
       branch_id: form.branch_id || null, status: form.status,
     }
     if (!payload.first_name || !payload.last_name) {
       setError('First and last names cannot be blank.')
+      setBusy(false)
+      return
+    }
+    if (!payload.gender || !payload.date_of_birth || payload.date_of_birth >= new Date().toISOString().slice(0, 10)) {
+      setError('Gender and a valid date of birth before today are required.')
+      setBusy(false)
+      return
+    }
+    if (!['SINGLE', 'COURTSHIP', 'ENGAGED', 'MARRIED', 'DIVORCED', 'WIDOWED'].includes(payload.marital_status)) {
+      setError('Choose a valid marital status.')
       setBusy(false)
       return
     }
@@ -296,7 +310,9 @@ function MemberForm({ member, orgId, branches, canSaveBranch, onSave, onClose })
       <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 17 }}>
       <div className="form-grid"><label>First name<input value={form.first_name} onChange={change('first_name')} maxLength={100} required autoFocus /></label><label>Last name<input value={form.last_name} onChange={change('last_name')} maxLength={100} required /></label></div>
       <div className="form-grid"><label>Email address <span className="optional">Optional</span><input type="email" value={form.email || ''} onChange={change('email')} /></label><label>Phone number <span className="optional">Optional</span><input type="tel" value={form.phone || ''} onChange={change('phone')} /></label></div>
-      <div className="form-grid"><label>Second phone number <span className="optional">Optional</span><input type="tel" maxLength={40} value={form.phone_2 || ''} onChange={change('phone_2')} /></label><label>Date of birth <span className="optional">Optional</span><input type="date" value={form.date_of_birth || ''} onChange={change('date_of_birth')} /></label></div>
+      <div className="form-grid"><label>Gender<select value={form.gender || ''} onChange={change('gender')} required><option value="">Select gender</option><option value="MALE">Male</option><option value="FEMALE">Female</option><option value="OTHER">Other</option></select></label><label>Date of birth<input type="date" max={new Date(Date.now() - 86400000).toISOString().slice(0, 10)} value={form.date_of_birth || ''} onChange={change('date_of_birth')} required /></label></div>
+      <div className="form-grid"><label>Marital status<select value={form.marital_status || ''} onChange={change('marital_status')} required><option value="">Select marital status</option><option value="SINGLE">Single</option><option value="COURTSHIP">Courtship</option><option value="ENGAGED">Engaged</option><option value="MARRIED">Married</option><option value="DIVORCED">Divorced</option><option value="WIDOWED">Widowed</option></select></label><label>Second phone number <span className="optional">Optional</span><input type="tel" maxLength={40} value={form.phone_2 || ''} onChange={change('phone_2')} /></label></div>
+      <div className="form-grid"><label>Residence <span className="optional">Optional</span><input maxLength={255} value={form.residence || ''} onChange={change('residence')} /></label><label>Baptism <span className="optional">Optional</span><select value={form.baptized == null ? '' : String(form.baptized)} onChange={(event) => { setChecked(false); setForm({ ...form, baptized: event.target.value === '' ? null : event.target.value === 'true' }) }}><option value="">Not provided</option><option value="true">Baptized</option><option value="false">Not baptized</option></select></label></div>
       {member?.user_id && <Notice>Branch, status and deletion are unavailable for linked accounts until account access management is implemented.</Notice>}
       <div className="form-grid"><label>Branch<select value={form.branch_id} onChange={change('branch_id')} required={!canSaveBranch(null)} disabled={Boolean(member?.user_id)}><option value="" disabled={!canSaveBranch(null)}>No branch</option>{branches.filter((branch) => canSaveBranch(branch.id)).map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label>Status<select value={form.status} onChange={change('status')} disabled={Boolean(member?.user_id)}><option value="active">Active</option><option value="inactive">Inactive</option></select></label></div>
       </fieldset>
@@ -341,7 +357,9 @@ function Workspace({ session }) {
     setOrganizations(orgResult.data)
     const requested = new URLSearchParams(window.location.search).get('organization_id') || sessionStorage.getItem('africhurch-requested-org')
     setOrgId((current) => {
-      return orgResult.data.some((org) => org.id === current) ? current : (orgResult.data.find((org) => org.id === requested)?.id || orgResult.data[0]?.id || '')
+      if (orgResult.data.some((org) => org.id === current)) return current
+      const requestedOrg = orgResult.data.find((org) => org.id === requested)
+      return requestedOrg?.id || (ownerResult.data ? '' : orgResult.data[0]?.id || '')
     })
   }, [])
 
@@ -373,13 +391,11 @@ function Workspace({ session }) {
 
   const loadOrgData = useCallback(async (id) => {
     const [memberResult, branchResult, assignmentResult] = await Promise.all([
-      supabase.from('members').select('*').eq('organization_id', id).order('created_at', { ascending: false }).limit(1000),
-      supabase.from('branches').select('id, name').eq('organization_id', id).order('name'),
-      supabase.from('assignments').select('branch_id, roles(name, is_org_admin, permissions)').eq('organization_id', id).eq('active', true),
+      fetchAllPages((from, to) => supabase.from('members').select('*').eq('organization_id', id).order('created_at', { ascending: false }).range(from, to)),
+      fetchAllPages((from, to) => supabase.from('branches').select('id, name').eq('organization_id', id).order('name').range(from, to)),
+      fetchAllPages((from, to) => supabase.from('assignments').select('branch_id, roles(name, is_org_admin, permissions)').eq('organization_id', id).eq('active', true).range(from, to)),
     ])
-    const resultError = memberResult.error || branchResult.error || assignmentResult.error
-    if (resultError) throw new Error(resultError.message)
-    return { members: memberResult.data, branches: branchResult.data, assignments: assignmentResult.data }
+    return { members: memberResult, branches: branchResult, assignments: assignmentResult }
   }, [])
 
   useEffect(() => {
@@ -395,9 +411,7 @@ function Workspace({ session }) {
   }, [orgId, loadOrgData])
 
   async function refreshMembers() {
-    const { data, error: loadError } = await supabase.from('members').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(1000)
-    if (loadError) throw new Error(loadError.message)
-    setMembers(data)
+    setMembers(await fetchAllPages((from, to) => supabase.from('members').select('*').eq('organization_id', orgId).order('created_at', { ascending: false }).range(from, to)))
   }
 
   async function saveMember(payload, id) {
@@ -476,9 +490,7 @@ function Workspace({ session }) {
   const firstName = session.user.user_metadata?.full_name?.split(' ')[0] || session.user.email?.split('@')[0] || 'there'
   const navigate = (next) => { setPage(next); setMenuOpen(false); setNotice(''); if (next === 'dashboard') { setBranchFilter('all'); setStatusFilter('all') } }
   async function refreshBranches() {
-    const { data, error: loadError } = await supabase.from('branches').select('id, name').eq('organization_id', orgId).order('name')
-    if (loadError) throw new Error(loadError.message)
-    setBranches(data)
+    setBranches(await fetchAllPages((from, to) => supabase.from('branches').select('id, name').eq('organization_id', orgId).order('name').range(from, to)))
   }
   async function refreshAccess() {
     const data = await loadOrgData(orgId)
@@ -498,7 +510,7 @@ function Workspace({ session }) {
         <div className="nav-label nav-label-spaced">MY CHURCH</div>
         {personalNavigation.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><HeartHandshake size={18} /> {item.label}</button>)}
         {managementNav.length > 0 && <div className="nav-label nav-label-spaced">MANAGEMENT</div>}
-        {managementNav.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><Users size={18} /> {item.label}{!['members', 'visitors', 'branches', 'membership-requests', 'attendance', 'absences', 'ministries', 'departments', 'roles', 'events', 'audit', 'families', 'children', 'reports', 'users', 'org-settings'].includes(item.id) && <span className="nav-soon">Soon</span>}</button>)}
+        {managementNav.map((item) => <button key={item.id} className={`nav-item ${page === item.id ? 'selected' : ''}`} onClick={() => navigate(item.id)}><Users size={18} /> {item.label}{!['members', 'visitors', 'branches', 'membership-requests', 'attendance', 'absences', 'ministries', 'departments', 'roles', 'events', 'audit', 'families', 'children', 'reports', 'users', 'org-settings', 'billing'].includes(item.id) && <span className="nav-soon">Soon</span>}</button>)}
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-note"><Sparkles size={17} /><strong>Built for belonging.</strong><p>A little more space for the things that matter.</p></div><button className="user-button" onClick={signOut} disabled={signingOut} aria-busy={signingOut}><span className="avatar">{firstName[0].toUpperCase()}</span><span className="user-info"><strong>{firstName}</strong><small><ActionLabel busy={signingOut} pending="Signing out…">Sign out</ActionLabel></small></span>{!signingOut && <LogOut size={17} />}</button></div>
     </aside>
@@ -507,7 +519,7 @@ function Workspace({ session }) {
       <main className="main-content">
         {error && <Notice error>{error}</Notice>}{registrationError && <div className="notice notice-error" role="alert">Registration is not complete: {registrationError} <button className="text-button" disabled={registrationBusy} onClick={retryRegistration}><ActionLabel busy={registrationBusy} pending="Retrying…">Retry registration</ActionLabel></button></div>}{registrationStatus === 'pending' && <div className="notice" role="status">Your registration needs church administrator review. After approval, sign in and retry. <button className="text-button" disabled={registrationBusy} onClick={retryRegistration}><ActionLabel busy={registrationBusy} pending="Checking…">Check status</ActionLabel></button></div>}{registrationStatus === 'rejected' && <Notice error>Your registration was not approved. Please contact your church administrator.</Notice>}{notice && <Notice><Check size={16} /> {notice}</Notice>}
         <div className="page-heading"><div><div className="eyebrow"><span className="eyebrow-dot" /> {page === 'dashboard' ? 'YOUR CHURCH, CONNECTED' : 'YOUR WORKSPACE'}</div><h1>{page === 'dashboard' ? `Welcome back, ${firstName}.` : pageTitle}</h1><p>{page === 'dashboard' ? 'Here’s a little overview of your community.' : page === 'members' ? 'A thoughtful home for the people who make your church.' : 'Your church community, in one place.'}</p></div>
-          <div className="heading-actions">{organizations.length > 0 && <label className="select-wrap"><span className="sr-only">Choose church</span><Building2 size={16} /><select value={orgId} onChange={(e) => { setOrgId(e.target.value); setNotice('') }}>{organizations.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>}{owner && <button className="button button-outline" onClick={() => { setError(''); setModal('organization') }}><Plus size={16} /> New church</button>}{org && canCreate && <button className="button button-dark" onClick={() => setModal('add')}><Plus size={17} /> Add member</button>}</div>
+          <div className="heading-actions">{organizations.length > 0 && <label className="select-wrap"><span className="sr-only">Choose church</span><Building2 size={16} /><select value={orgId} onChange={(e) => { setOrgId(e.target.value); setNotice('') }}>{owner && <option value="">Select a church</option>}{organizations.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>}{owner && <button className="button button-outline" onClick={() => { setError(''); setModal('organization') }}><Plus size={16} /> New church</button>}{org && canCreate && <button className="button button-dark" onClick={() => setModal('add')}><Plus size={17} /> Add member</button>}</div>
         </div>
         {!loading && page === 'dashboard' && <RegistrationPayment key={session.user.id} userId={session.user.id} />}
         {loading ? <div className="loading">Loading your workspace…</div> : owner && page === 'applications' ? <Applications onApproved={loadOrganizations} /> : owner && page === 'plans' ? <Plans organizations={organizations} /> : owner && page === 'audit' ? <SupportActivity organizations={organizations} owner /> : page === 'community' && (owner || org) ? (orgLoading ? <div className="loading">Loading church workspace…</div> : <ConnectGroups key={orgId} orgId={orgId} organizations={organizations} owner={owner} canAdmin={orgAdmin} userId={session.user.id} />) : page === 'my-attendance' ? (!org ? <section className="empty-workspace"><h2>No church selected</h2><p>Check-in requires a linked church record.</p></section> : orgLoading ? <div className="loading">Loading church workspace…</div> : <SelfAttendance key={orgId} orgId={orgId} />) : personalNavigation.some((item) => item.id === page) && page !== 'community' ? (orgLoading ? <div className="loading">Loading church workspace…</div> : <MyChurch key={`${page}-${orgId}`} page={page} user={session.user} orgId={orgId} organization={org} organizations={organizations} owner={owner} assignments={assignments} canAdmin={orgAdmin} />) : !org ? <section className="empty-workspace"><span className="empty-icon"><Church size={27} /></span><h2>Let’s make room for community.</h2><p>{owner ? 'Review church applications, or create a church workspace directly.' : 'You don’t have a church assignment yet. If you registered a church, confirm your email and complete any payment details above, then wait for platform owner approval.'}</p>{owner && <button className="button button-dark" onClick={() => navigate('applications')}>Review applications <ArrowRight size={17} /></button>}</section> : orgLoading ? <div className="loading">Loading church workspace…</div> : <>
@@ -520,7 +532,7 @@ function Workspace({ session }) {
             <div className="section-title directory-heading"><div><span className="section-kicker">PEOPLE & COMMUNITY</span><h2>{page === 'dashboard' ? 'Your church family' : 'Member directory'}</h2><p>Every name has a story. Keep yours connected.</p></div>{page === 'dashboard' && <button className="text-button" onClick={() => navigate('members')}>View all members <ArrowRight size={16} /></button>}</div>
             <div className="directory-card"><div className="directory-toolbar"><div><strong>Members shown</strong><span className="count-pill">{filtered.length}</span></div><label className="search"><Search size={17} /><span className="sr-only">Search members</span><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people..." /></label></div>
               {page === 'members' && <div className="member-tools"><label>Branch<select value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}><option value="all">All branches</option><option value="unassigned">No branch</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label><label>Status<select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label><button className="button button-outline" disabled={!filtered.length} onClick={() => downloadCsv('members.csv', memberCsv(filtered, branches))}>Export shown CSV</button>{canCreate && <button className="button button-outline" onClick={() => setModal('import')}>Import CSV</button>}</div>}
-              <Notice>Directory loads at most 1,000 accessible members. Search, filters and export only cover the loaded records.</Notice>
+              <Notice>Search, filters and export cover all accessible members loaded from the directory.</Notice>
               {filtered.length === 0 ? <div className="empty-members"><div className="empty-icon"><Users size={24} /></div><h3>{query || branchFilter !== 'all' || statusFilter !== 'all' ? 'No people found' : 'Your directory starts here'}</h3><p>{query || branchFilter !== 'all' || statusFilter !== 'all' ? 'Try another search or filter.' : 'Members you have permission to see will appear here.'}</p>{!query && branchFilter === 'all' && statusFilter === 'all' && canCreate && <button className="text-button" onClick={() => setModal('add')}>Add your first member <ArrowRight size={15} /></button>}</div> :
                 <div className="table-scroll"><table><thead><tr><th>MEMBER</th><th>CONTACT</th><th>BRANCH</th><th>STATUS</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{(page === 'dashboard' ? filtered.slice(0, 5) : filtered).map((member) => <tr key={member.id}><td><div className="member-name"><span className="member-avatar">{member.first_name[0]}{member.last_name[0]}</span><strong>{member.first_name} {member.last_name}</strong></div></td><td><span>{member.email || '—'}</span><small>{member.phone || ''}</small></td><td>{branches.find((branch) => branch.id === member.branch_id)?.name || '—'}</td><td><span className={`status ${member.status}`}><span />{member.status}</span></td><td><div className="row-actions">{can('update', member.branch_id) && <button disabled={Boolean(deletingId)} onClick={() => setModal(member)}>Edit</button>}{can('delete', member.branch_id) && <button disabled={Boolean(deletingId)} aria-busy={deletingId === member.id} onClick={() => deleteMember(member)}><ActionLabel busy={deletingId === member.id} pending="Removing…">Remove</ActionLabel></button>}</div></td></tr>)}</tbody></table></div>}
             </div>
@@ -538,7 +550,8 @@ function Workspace({ session }) {
           {pageAvailable && page === 'reports' && <ChurchReports key={orgId} orgId={orgId} canAdmin={orgAdmin} />}
           {pageAvailable && page === 'users' && <ChurchUsers key={orgId} orgId={orgId} canAdmin={orgAdmin} onAccessChanged={refreshAccess} navigate={navigate} />}
           {pageAvailable && page === 'org-settings' && <OrganizationSettings key={orgId} orgId={orgId} canAdmin={orgAdmin} onSaved={loadOrganizations} navigate={navigate} />}
-          {page !== 'dashboard' && page !== 'members' && page !== 'branches' && !(pageAvailable && ['membership-requests', 'visitors', 'attendance', 'absences', 'ministries', 'departments', 'roles', 'events', 'audit', 'families', 'children', 'reports', 'users', 'org-settings'].includes(page)) && <section className="empty-workspace"><span className="empty-icon"><Sparkles size={24} /></span><h2>{pageTitle}</h2><p>{pageAvailable ? 'This workspace area is not implemented yet. Its navigation is shown according to your permissions.' : 'Your current assignments do not grant access to this area.'}</p></section>}
+          {pageAvailable && page === 'billing' && <Billing key={orgId} orgId={orgId} owner={owner} />}
+          {page !== 'dashboard' && page !== 'members' && page !== 'branches' && !(pageAvailable && ['membership-requests', 'visitors', 'attendance', 'absences', 'ministries', 'departments', 'roles', 'events', 'audit', 'families', 'children', 'reports', 'users', 'org-settings', 'billing'].includes(page)) && <section className="empty-workspace"><span className="empty-icon"><Sparkles size={24} /></span><h2>{pageTitle}</h2><p>{pageAvailable ? 'This workspace area is not implemented yet. Its navigation is shown according to your permissions.' : 'Your current assignments do not grant access to this area.'}</p></section>}
         </>}
         <footer className="content-footer"><span>Made for the work that matters <span>✳</span></span><span>AFRICHURCH / YOUR COMMUNITY</span></footer>
       </main>

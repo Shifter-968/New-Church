@@ -48,7 +48,7 @@ export default function PlanAssignment({ organizations }) {
     } catch (err) { setError(err.message || 'Unable to save plan assignment.') }
     finally { setBusy(false) }
   }
-  return <section className="directory-card my-card"><h2>Assign a church plan</h2><p>Manual support assignment controls reports and analytics only. It does not collect or verify payment, enforce limits, or manage subscriptions.</p>
+  return <section className="directory-card my-card"><h2>Assign a church plan</h2><p>Assigning a plan starts its billing schedule and controls included reporting features. It does not collect or verify payment; record verified payments from the church’s Billing tab. Usage limits are not enforced.</p>
     {plansError && <div className="notice notice-error" role="alert">{plansError}</div>}{error && <div className="notice notice-error" role="alert">{error}</div>}{message && <div className="notice" role="status">{message}</div>}
     <div className="my-form"><label>Church<select value={orgId} disabled={busy} onChange={(event) => { setOrgId(event.target.value); setMessage('') }}><option value="">Select a church</option>{organizations.map((org) => <option value={org.id} key={org.id}>{org.name}</option>)}</select></label>
       {orgId && (loading ? <p>Loading assigned plan…</p> : <p>Currently assigned: {current ? `${current.plan_name}${current.plan_active ? '' : ' (inactive)'}` : 'None'}</p>)}

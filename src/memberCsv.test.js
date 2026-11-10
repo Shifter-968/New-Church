@@ -3,14 +3,23 @@ import assert from 'node:assert/strict'
 import Papa from 'papaparse'
 import { filterMembers, memberCsv, parseMemberCsv, possibleDuplicateRows, templateCsv } from './memberCsv.js'
 
-test('parses quoted CSV, optional fields and second phone', () => {
-  const rows = parseMemberCsv('\ufefffirst_name,last_name,phone_2,date_of_birth,status\r\n"Mary, Jane",Doe,123,1992-02-29,ACTIVE\r\n')
-  assert.deepEqual(rows[0], { first_name: 'Mary, Jane', last_name: 'Doe', email: null, phone: null, phone_2: '123', date_of_birth: '1992-02-29', status: 'active' })
+test('maps familiar headers and parses member profile fields', () => {
+  const rows = parseMemberCsv('\ufeffFirst Name,Surname,Sex,Phone 2,DOB,Residence,Baptised,Marital Status,Branch ID,Created At\r\n"Mary, Jane",Doe,Female,123,1992-02-29,Manzini,yes,Married,ignored,ignored\r\n')
+  assert.deepEqual(rows[0], { first_name: 'Mary, Jane', last_name: 'Doe', email: null, phone: null, gender: 'FEMALE', phone_2: '123', date_of_birth: '1992-02-29', residence: 'Manzini', baptized: true, marital_status: 'MARRIED', status: 'active' })
 })
 
-test('rejects invalid CSV, dates, duplicates, unknown columns and excessive rows', () => {
-  for (const text of ['first_name,last_name\n"bad,Doe', 'first_name,last_name,date_of_birth\nA,B,2025-02-29', 'first_name,last_name\nA,B\nA,B', 'first_name,last_name,branch\nA,B,X', 'first_name,last_name\nA,B,C']) assert.throws(() => parseMemberCsv(text))
-  assert.throws(() => parseMemberCsv(`first_name,last_name\n${Array.from({ length: 501 }, (_, i) => `A${i},B`).join('\n')}`), /500/)
+test('rejects missing required fields, invalid data and excessive rows with clear errors', () => {
+  const valid = 'first_name,last_name,gender,date_of_birth\n'
+  for (const text of ['first_name,last_name\n"bad,Doe', `${valid}A,B,Female,2025-02-29`, `${valid}A,B,,2000-01-01`, `${valid}A,B,Female,`, `${valid}A,B,Female,2000-01-01\nA,B,Female,2000-01-01`, `${valid}A,B,Female,2000-01-01,extra`]) assert.throws(() => parseMemberCsv(text))
+  assert.throws(() => parseMemberCsv(`first_name,last_name,gender,date_of_birth\n${Array.from({ length: 1501 }, (_, i) => `A${i},B,Female,2000-01-01`).join('\n')}`), /1500/)
+  assert.throws(() => parseMemberCsv('first_name,last_name,gender\nA,B,Female'), /date_of_birth/)
+  assert.throws(() => parseMemberCsv('first_name,last_name,gender,date_of_birth,marital_status\nA,B,Female,2000-01-01,complicated'), /marital status/)
+})
+
+test('defaults omitted marital status to single and supports common Excel date formats', () => {
+  const [row] = parseMemberCsv('First Name,Last Name,Gender,Date of Birth,ID\nJane,Doe,Female,15/12/1990,ignored')
+  assert.equal(row.date_of_birth, '1990-12-15')
+  assert.equal(row.marital_status, 'SINGLE')
 })
 
 test('exports filtered data with spreadsheet formula protection', () => {
@@ -19,17 +28,18 @@ test('exports filtered data with spreadsheet formula protection', () => {
   assert.equal(rows[0].first_name, "'=2+2")
   assert.equal(rows[0].phone, "'  @cmd")
   assert.equal(rows[0].branch, 'Main')
-  assert.match(templateCsv(), /first_name,last_name/)
+  assert.match(templateCsv(), /first_name,last_name,gender/)
+  assert.match(templateCsv(), /baptised/)
 })
 
 test('handles embedded newlines and quotes in CSV fields', () => {
-  const [row] = parseMemberCsv('first_name,last_name\n"Mary ""May""\nAnne",Doe')
+  const [row] = parseMemberCsv('first_name,last_name,gender,date_of_birth\n"Mary ""May""\nAnne",Doe,Female,2000-01-01')
   assert.equal(row.first_name, 'Mary "May"\nAnne')
 })
 
 test('visitor template and parsing use only supported visitor fields', () => {
   assert.deepEqual(parseMemberCsv('first_name,last_name,email,phone\nJane,Doe,,', 'visitors'), [{ first_name: 'Jane', last_name: 'Doe', email: null, phone: null }])
-  assert.throws(() => parseMemberCsv('first_name,last_name,status\nJane,Doe,active', 'visitors'), /Unsupported columns/)
+  assert.throws(() => parseMemberCsv('first_name,last_name,status\nJane,Doe,active', 'visitors'), /Unsupported visitor/)
   assert.equal(templateCsv('visitors').trim(), 'first_name,last_name,email,phone')
   assert.doesNotMatch(memberCsv([{ first_name: 'Jane', last_name: 'Doe' }], [], 'visitors'), /status/)
 })

@@ -71,7 +71,7 @@ export default function MemberImport({ orgId, branches, canCreate, onImported, o
       <button type="button" className="text-button" onClick={() => downloadCsv(`${singular}-import-template.csv`, templateCsv(kind))}>Download CSV template</button>
       <label>Branch<select value={branchId} onChange={(event) => setBranchId(event.target.value)} required disabled={busy || locked}><option value="">Select a branch</option>{allowedBranches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>
       {allowedBranches.length === 0 && <Notice error>No branch is available with member creation permission.</Notice>}
-      <label>CSV file <span className="optional">Up to 500 records, 2 MB</span><input type="file" accept=".csv,text/csv" onChange={chooseFile} disabled={busy || locked} required /></label>
+      <label>CSV file <span className="optional">Up to 1,500 records, 2 MB</span><input type="file" accept=".csv,text/csv" onChange={chooseFile} disabled={busy || locked} required /></label>
       {members && <p>{fileName}: {members.length} valid {singular} {members.length === 1 ? 'row' : 'rows'} ready to add.</p>}
       {locked && !busy && <p>Close this window and check the directory before attempting another import.</p>}
       <div className="modal-actions"><button type="button" className="button button-outline" disabled={busy} onClick={onClose}>Close</button><button className="button button-dark" disabled={busy || locked || !members || !branchId} aria-busy={busy} aria-label={busy ? `Importing ${kind}` : `Import ${kind}`}><ActionLabel busy={busy} pending="Importing…">Import {kind}</ActionLabel></button></div>
