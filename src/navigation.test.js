@@ -24,3 +24,11 @@ test('absence notices require their own permission in navigation', () => {
   assert.ok(!ids.includes('attendance'))
   assert.ok(!visibleManagementNavigation(false, [{ branch_id: 'a', roles: { permissions: ['attendance.view'] } }]).some((item) => item.id === 'absences'))
 })
+
+test('children tab is available to child-specific roles without exposing member or family tabs', () => {
+  const assignments = [{ branch_id: 'a', roles: { permissions: ['children.view'] } }]
+  const ids = visibleManagementNavigation(false, assignments).map((item) => item.id)
+  assert.ok(ids.includes('children'))
+  assert.ok(!ids.includes('members'))
+  assert.ok(!ids.includes('families'))
+})

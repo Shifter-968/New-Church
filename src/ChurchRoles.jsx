@@ -5,6 +5,7 @@ import ActionLabel from './ActionLabel'
 const permissions = [
   ['members.view', 'View members'], ['members.create', 'Add members'], ['members.update', 'Edit members'], ['members.delete', 'Delete members'],
   ['visitors.view', 'View visitors'], ['visitors.create', 'Add visitors'], ['visitors.update', 'Edit visitors'], ['visitors.delete', 'Delete visitors'],
+  ['children.view', 'View children'], ['children.create', 'Add children and record attendance'], ['children.update', 'Edit children, events and attendance'], ['children.delete', 'Delete children and events'],
   ['attendance.view', 'View attendance'], ['attendance.create', 'Mark attendance'], ['attendance.absences.view', 'View reported absences and reasons'],
 ]
 

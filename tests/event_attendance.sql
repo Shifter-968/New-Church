@@ -1,4 +1,4 @@
--- Isolated PostgreSQL only, after migration 041.
+-- Isolated PostgreSQL only, after migration 042.
 begin;
 insert into public.organizations (id,name) values ('e0000000-0000-4000-8000-000000000001','Church A'),('e0000000-0000-4000-8000-000000000002','Church B');
 insert into public.branches (id,organization_id,name,latitude,longitude,radius_meters) values
@@ -35,7 +35,8 @@ insert into public.church_events (id,organization_id,title,starts_at,ends_at,cre
  ('e6000000-0000-4000-8000-000000000002','e0000000-0000-4000-8000-000000000001','Past',now()-interval '3 hours',now()-interval '1 hour','e2000000-0000-4000-8000-000000000004','physical','Church',-26.3,31.1),
  ('e6000000-0000-4000-8000-000000000003','e0000000-0000-4000-8000-000000000002','Other church',now()-interval '1 hour',now()+interval '1 hour','e2000000-0000-4000-8000-000000000007','physical','Church',0,0),
  ('e6000000-0000-4000-8000-000000000004','e0000000-0000-4000-8000-000000000001','Online service',now()-interval '1 hour',now()+interval '1 hour','e2000000-0000-4000-8000-000000000004','virtual','Online',null,null),
- ('e6000000-0000-4000-8000-000000000005','e0000000-0000-4000-8000-000000000001','Physical event without pin',now()-interval '1 hour',now()+interval '1 hour','e2000000-0000-4000-8000-000000000004','physical','Venue pending',null,null);
+ ('e6000000-0000-4000-8000-000000000005','e0000000-0000-4000-8000-000000000001','Physical event without pin',now()-interval '1 hour',now()+interval '1 hour','e2000000-0000-4000-8000-000000000004','physical','Venue pending',null,null),
+ ('e6000000-0000-4000-8000-000000000006','e0000000-0000-4000-8000-000000000001','Past virtual event',now()-interval '3 hours',now()-interval '1 hour','e2000000-0000-4000-8000-000000000004','virtual','Online',null,null);
 set local role authenticated;
 select set_config('request.jwt.claim.sub','e2000000-0000-4000-8000-000000000001',true);
 do $$ begin
@@ -67,6 +68,8 @@ end $$;
 select set_config('request.jwt.claim.sub','e2000000-0000-4000-8000-000000000004',true);
 do $$ begin
  perform public.admin_check_in('e6000000-0000-4000-8000-000000000001','member','e4000000-0000-4000-8000-000000000002');
+ begin perform public.admin_check_in('e6000000-0000-4000-8000-000000000002','member','e4000000-0000-4000-8000-000000000001'); raise exception 'Organization admin marked attendance for a past physical event'; exception when raise_exception then if sqlerrm = 'Organization admin marked attendance for a past physical event' then raise; end if; end;
+ begin perform public.admin_check_in('e6000000-0000-4000-8000-000000000006','member','e4000000-0000-4000-8000-000000000001'); raise exception 'Organization admin marked attendance for a past virtual event'; exception when raise_exception then if sqlerrm = 'Organization admin marked attendance for a past virtual event' then raise; end if; end;
  begin delete from public.church_events where id='e6000000-0000-4000-8000-000000000001'; raise exception 'Event with attendance deleted'; exception when foreign_key_violation then null; end;
  begin delete from public.visitors where id='e5000000-0000-4000-8000-000000000002'; raise exception 'Visitor with attendance deleted'; exception when foreign_key_violation then null; end;
 end $$;

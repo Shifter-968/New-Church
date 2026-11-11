@@ -24,6 +24,7 @@ import ChurchTeams from './ChurchTeams.jsx'
 import ChurchRoles from './ChurchRoles.jsx'
 import ChurchFeed from './ChurchFeed.jsx'
 import FamiliesChildren from './FamiliesChildren.jsx'
+import ChildrenProgram from './ChildrenProgram.jsx'
 import ChurchReports from './ChurchReports.jsx'
 import ChurchUsers from './ChurchUsers.jsx'
 import { ReportedAbsences } from './Absences.jsx'
@@ -546,7 +547,8 @@ function Workspace({ session }) {
           {pageAvailable && page === 'roles' && <ChurchRoles key={orgId} orgId={orgId} branches={branches} canAdmin={orgAdmin} onAccessChanged={refreshAccess} />}
           {pageAvailable && page === 'events' && <><section className="directory-card my-card"><h2>Events management</h2><p>Create and manage events and their audiences here. Attendance records can be searched, filtered and exported from Attendance for the selected church.</p>{managementNav.some((item) => item.id === 'attendance') && <button className="button button-outline" onClick={() => navigate('attendance')}>Open attendance</button>}</section><ChurchFeed key={`events-${orgId}`} page="calendar" orgId={orgId} organizations={organizations} owner={owner} canAdmin={orgAdmin} /></>}
           {pageAvailable && page === 'audit' && <SupportActivity key={orgId} orgId={orgId} organizations={organizations} />}
-          {pageAvailable && ['families', 'children'].includes(page) && <FamiliesChildren key={`${orgId}-${page}`} orgId={orgId} branches={branches} owner={owner} assignments={assignments} page={page} />}
+          {pageAvailable && page === 'families' && <FamiliesChildren key={`${orgId}-${page}`} orgId={orgId} branches={branches} owner={owner} assignments={assignments} page={page} />}
+          {pageAvailable && page === 'children' && <ChildrenProgram key={orgId} orgId={orgId} branches={branches} owner={owner} assignments={assignments} />}
           {pageAvailable && page === 'reports' && <ChurchReports key={orgId} orgId={orgId} canAdmin={orgAdmin} />}
           {pageAvailable && page === 'users' && <ChurchUsers key={orgId} orgId={orgId} canAdmin={orgAdmin} onAccessChanged={refreshAccess} navigate={navigate} />}
           {pageAvailable && page === 'org-settings' && <OrganizationSettings key={orgId} orgId={orgId} canAdmin={orgAdmin} onSaved={loadOrganizations} navigate={navigate} />}

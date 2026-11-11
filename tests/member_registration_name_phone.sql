@@ -1,4 +1,4 @@
--- Run only against an isolated test database after migrations through 034.
+-- Run only against an isolated test database after migrations through 042.
 begin;
 insert into public.organizations(id,name) values ('c1000000-0000-4000-8000-000000000001','Match church');
 insert into public.branches(id,organization_id,name) values
@@ -16,15 +16,15 @@ insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)
 select id, id::text || '@example.test', now(), jsonb_build_object('individual_registration',jsonb_build_object(
  'organization_id','c1000000-0000-4000-8000-000000000001',
  'branch_id','c2000000-0000-4000-8000-000000000001',
- 'person_type','MEMBER','first_name',first_name,'last_name',last_name,'birth_date','1990-01-01','phone',phone))
+ 'person_type','MEMBER','first_name',first_name,'last_name',last_name,'birth_date','1990-01-01','phone',phone,'phone_2',phone_2))
 from (values
- ('c4000000-0000-4000-8000-000000000001'::uuid,'Exact','Person','022333'),
- ('c4000000-0000-4000-8000-000000000002'::uuid,'Missing','Phone','111111'),
- ('c4000000-0000-4000-8000-000000000003'::uuid,'Wrong','Phone','222222'),
- ('c4000000-0000-4000-8000-000000000004'::uuid,'Completely','Different','333333'),
- ('c4000000-0000-4000-8000-000000000005'::uuid,'Double','Member','666666'),
- ('c4000000-0000-4000-8000-000000000006'::uuid,'Actual','Membr','555555')
-) fixtures(id,first_name,last_name,phone);
+ ('c4000000-0000-4000-8000-000000000001'::uuid,'Exact Middle Names','Person','022333','011234'),
+ ('c4000000-0000-4000-8000-000000000002'::uuid,'Missing','Phone','111111',null),
+ ('c4000000-0000-4000-8000-000000000003'::uuid,'Wrong','Phone','222222',null),
+ ('c4000000-0000-4000-8000-000000000004'::uuid,'Completely','Different','333333',null),
+ ('c4000000-0000-4000-8000-000000000005'::uuid,'Double','Member','666666',null),
+ ('c4000000-0000-4000-8000-000000000006'::uuid,'Actual','Membr','555555',null)
+) fixtures(id,first_name,last_name,phone,phone_2);
 insert into auth.users(id,email,email_confirmed_at) values
  ('c4000000-0000-4000-8000-000000000010','reviewer@example.test',now()),
  ('c4000000-0000-4000-8000-000000000011','other-reviewer@example.test',now());
@@ -40,7 +40,15 @@ do $$ begin
  if public.complete_individual_registration() <> 'completed' then raise exception 'Completion not idempotent'; end if;
 end $$;
 select set_config('request.jwt.claim.sub','c4000000-0000-4000-8000-000000000002',true);
-do $$ begin if public.complete_individual_registration() <> 'pending' then raise exception 'Missing stored phone did not require review'; end if; end $$;
+do $$ begin
+ begin
+  perform public.complete_individual_registration();
+  raise exception 'Missing saved member phone was not reported';
+ exception when raise_exception then
+  if sqlerrm = 'Missing saved member phone was not reported' then raise; end if;
+  if position('contact your church administrators' in lower(sqlerrm)) = 0 then raise; end if;
+ end;
+end $$;
 select set_config('request.jwt.claim.sub','c4000000-0000-4000-8000-000000000003',true);
 do $$ begin if public.complete_individual_registration() <> 'pending' then raise exception 'Phone mismatch did not require review'; end if; end $$;
 select set_config('request.jwt.claim.sub','c4000000-0000-4000-8000-000000000004',true);

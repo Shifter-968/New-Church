@@ -11,7 +11,7 @@ export const personalNavigation = [
 export const managementNavigation = [
   { id: 'members', label: 'Members', permission: 'members.view' },
   { id: 'membership-requests', label: 'Membership requests', permission: 'members.update' },
-  { id: 'children', label: 'Children', permission: 'members.view' },
+  { id: 'children', label: 'Children', permission: 'children.view' },
   { id: 'families', label: 'Families', permission: 'members.view' },
   { id: 'visitors', label: 'Visitors', permission: 'visitors.view' },
   { id: 'branches', label: 'Branches', permission: 'org.branches.view' },
@@ -34,5 +34,7 @@ export function isOrganizationAdmin(owner, assignments) {
 
 export function visibleManagementNavigation(owner, assignments) {
   const admin = isOrganizationAdmin(owner, assignments)
-  return managementNavigation.filter((item) => admin || (!item.orgAdminOnly && assignments.some((assignment) => assignment.roles?.permissions?.includes(item.permission))))
+  return managementNavigation.filter((item) => admin || (!item.orgAdminOnly && assignments.some((assignment) =>
+    assignment.roles?.permissions?.includes(item.permission)
+      || (item.id === 'children' && assignment.roles?.permissions?.includes('members.view')))))
 }
