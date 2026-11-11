@@ -37,6 +37,12 @@ test('handles embedded newlines and quotes in CSV fields', () => {
   assert.equal(row.first_name, 'Mary "May"\nAnne')
 })
 
+test('allows family members with the same name or shared phone number', () => {
+  const rows = parseMemberCsv('first_name,last_name,gender,date_of_birth,phone\nJane,Doe,Female,1980-01-01,12345\nJane,Doe,Female,2005-01-01,12345')
+  assert.equal(rows.length, 2)
+  assert.equal(rows[0].phone, rows[1].phone)
+})
+
 test('visitor template and parsing use only supported visitor fields', () => {
   assert.deepEqual(parseMemberCsv('first_name,last_name,email,phone\nJane,Doe,,', 'visitors'), [{ first_name: 'Jane', last_name: 'Doe', email: null, phone: null }])
   assert.throws(() => parseMemberCsv('first_name,last_name,status\nJane,Doe,active', 'visitors'), /Unsupported visitor/)
