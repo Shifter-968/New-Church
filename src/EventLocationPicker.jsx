@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { MapPin, Search, X } from 'lucide-react'
 import L from 'leaflet'
 
-export default function EventLocationPicker({ location, latitude, longitude, onChange, disabled }) {
+export default function EventLocationPicker({ eventFormat, location, latitude, longitude, onChange, disabled }) {
     const mapElement = useRef(null)
     const map = useRef(null)
     const marker = useRef(null)
@@ -75,10 +75,10 @@ export default function EventLocationPicker({ location, latitude, longitude, onC
     }
 
     return <div className="event-location">
-        <label>Location <span className="optional">Optional, e.g. online or a venue</span><input maxLength={255} value={location} onChange={(event) => onChange({ location: event.target.value })} disabled={disabled} /></label>
-        <details className="event-map" open>
-            <summary><MapPin size={15} /> In-person map pin <span className="optional">Optional</span></summary>
-            <p>Search for a place or select a point on the map. Online events can leave this blank.</p>
+        <label>{eventFormat === 'virtual' ? 'Online location or meeting link' : 'Venue name'} <span className="optional">Optional</span><input maxLength={255} value={location} onChange={(event) => onChange({ location: event.target.value })} disabled={disabled} /></label>
+        {eventFormat === 'physical' && <details className="event-map" open>
+            <summary><MapPin size={15} /> Physical event location <span className="optional">Required for check-in</span></summary>
+            <p>Search for the venue or select its point on the map. Attendees must be within 100 m of this pin to check in.</p>
             {error && <div className="notice notice-error" role="alert">{error}</div>}
             <form className="branch-map-search" onSubmit={searchPlace}>
                 <label>Search a city or address<input value={search} onChange={(event) => setSearch(event.target.value)} maxLength={200} disabled={disabled || busy} placeholder="e.g. Manzini, Eswatini" /></label>
@@ -87,6 +87,6 @@ export default function EventLocationPicker({ location, latitude, longitude, onC
             {results.length > 0 && <div className="branch-map-results" aria-label="Map search results">{results.map((place) => <button key={place.place_id} type="button" className="text-button" disabled={disabled} onClick={() => choosePlace(place)}>{place.display_name}</button>)}</div>}
             <div ref={mapElement} className="branch-map event-map-canvas" role="application" aria-label="Choose an event location on the map" />
             <div className="event-map-footer"><small>{latitude && longitude ? `Pinned at ${latitude}, ${longitude}` : 'No map pin selected'}</small>{latitude && longitude && <button type="button" className="text-button" onClick={clearPin} disabled={disabled}><X size={14} /> Clear pin</button>}</div>
-        </details>
+        </details>}
     </div>
 }

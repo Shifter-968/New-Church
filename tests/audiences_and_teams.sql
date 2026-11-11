@@ -30,9 +30,9 @@ insert into public.church_teams(id,organization_id,kind,name) values
  ('b6000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','department','Ushers'),
  ('b6000000-0000-4000-8000-000000000002','b0000000-0000-4000-8000-000000000002','ministry','Other');
 insert into public.church_team_members(organization_id,team_id,visitor_id) values ('b0000000-0000-4000-8000-000000000001','b6000000-0000-4000-8000-000000000001','b5000000-0000-4000-8000-000000000001');
-insert into public.church_events(id,organization_id,title,starts_at,ends_at,created_by,audience_everyone,audience_roles,audience_teams) values
- ('b7000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','Targeted',now()-interval '1 hour',now()+interval '1 hour','b2000000-0000-4000-8000-000000000001',false,array['b3000000-0000-4000-8000-000000000002']::uuid[],array['b6000000-0000-4000-8000-000000000001']::uuid[]),
- ('b7000000-0000-4000-8000-000000000002','b0000000-0000-4000-8000-000000000001','Everyone',now()-interval '1 hour',now()+interval '1 hour','b2000000-0000-4000-8000-000000000001',true,'{}','{}');
+insert into public.church_events(id,organization_id,title,starts_at,ends_at,created_by,event_format,audience_everyone,audience_roles,audience_teams) values
+ ('b7000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','Targeted',now()-interval '1 hour',now()+interval '1 hour','b2000000-0000-4000-8000-000000000001','virtual',false,array['b3000000-0000-4000-8000-000000000002']::uuid[],array['b6000000-0000-4000-8000-000000000001']::uuid[]),
+ ('b7000000-0000-4000-8000-000000000002','b0000000-0000-4000-8000-000000000001','Everyone',now()-interval '1 hour',now()+interval '1 hour','b2000000-0000-4000-8000-000000000001','virtual',true,'{}','{}');
 insert into public.announcements(id,organization_id,title,content,created_by,audience_everyone,audience_roles,audience_teams) values
  ('b8000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','Targeted','Message','b2000000-0000-4000-8000-000000000001',false,'{}',array['b6000000-0000-4000-8000-000000000001']::uuid[]),
  ('b8000000-0000-4000-8000-000000000002','b0000000-0000-4000-8000-000000000001','Everyone','Message','b2000000-0000-4000-8000-000000000001',true,'{}','{}');

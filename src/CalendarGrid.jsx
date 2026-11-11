@@ -17,7 +17,7 @@ export default function CalendarGrid({ events, items, owner, canAdmin, edit, onR
         eventTimeFormat={{ hour: 'numeric', minute: '2-digit' }}
         datesSet={({ startStr, endStr }) => onRangeChange({ start: startStr, end: endStr })}
         eventClick={({ event }) => { const item = items.find((record) => record.id === event.id); if (item && (owner || canAdmin)) edit(item) }}
-        eventContent={({ timeText, event }) => <div className="event-calendar-entry"><span>{timeText}</span><strong>{event.title}</strong>{event.extendedProps.location && <small>{event.extendedProps.location}</small>}{event.extendedProps.repeatLabel && <small>{event.extendedProps.repeatLabel}</small>}</div>}
+        eventContent={({ timeText, event }) => <div className="event-calendar-entry"><span>{timeText}</span><strong>{event.title}</strong><small>{event.extendedProps.eventFormat === 'virtual' ? 'Virtual' : 'Physical'}</small>{event.extendedProps.location && <small>{event.extendedProps.location}</small>}{event.extendedProps.repeatLabel && <small>{event.extendedProps.repeatLabel}</small>}</div>}
         noEventsContent="No events in this view"
     />
 }

@@ -12,7 +12,7 @@ const config = {
   announcements: { table: 'announcements', title: 'Church announcements', icon: Megaphone, sort: 'created_at' },
   calendar: { table: 'church_events', title: 'Church calendar', icon: CalendarDays, sort: 'starts_at' },
 }
-const blank = { title: '', content: '', starts_at: '', ends_at: '', location: '', location_latitude: '', location_longitude: '', recurrence_frequency: 'none', recurrence_interval: '1', recurrence_weekdays: [], recurrence_until: '' }
+const blank = { title: '', content: '', starts_at: '', ends_at: '', event_format: 'physical', location: '', location_latitude: '', location_longitude: '', recurrence_frequency: 'none', recurrence_interval: '1', recurrence_weekdays: [], recurrence_until: '' }
 const dateTime = (value) => new Date(value).toLocaleString()
 const dateOnly = (value) => value ? new Date(value).toLocaleDateString() : ''
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -90,7 +90,7 @@ export default function ChurchFeed({ page, orgId, organizations, owner, canAdmin
   })
   function edit(item) {
     setError(''); setMessage(''); setEditing(item); setTargetOrg(item.organization_id)
-    setForm({ ...blank, title: item.title, content: page === 'calendar' ? item.description : item.content, starts_at: page === 'calendar' ? localDateTime(item.starts_at) : '', ends_at: page === 'calendar' ? localDateTime(item.ends_at) : '', location: item.location || '', location_latitude: item.location_latitude ?? '', location_longitude: item.location_longitude ?? '', recurrence_frequency: item.recurrence_frequency || 'none', recurrence_interval: String(item.recurrence_interval || 1), recurrence_weekdays: item.recurrence_weekdays || [], recurrence_until: item.recurrence_until || '' })
+    setForm({ ...blank, title: item.title, content: page === 'calendar' ? item.description : item.content, starts_at: page === 'calendar' ? localDateTime(item.starts_at) : '', ends_at: page === 'calendar' ? localDateTime(item.ends_at) : '', event_format: item.event_format || 'physical', location: item.location || '', location_latitude: item.location_latitude ?? '', location_longitude: item.location_longitude ?? '', recurrence_frequency: item.recurrence_frequency || 'none', recurrence_interval: String(item.recurrence_interval || 1), recurrence_weekdays: item.recurrence_weekdays || [], recurrence_until: item.recurrence_until || '' })
     setAudience({ everyone: item.audience_everyone, roles: item.audience_roles, teams: item.audience_teams })
   }
   function clearForm() { setEditing(null); setForm(blank); setTargetOrg(orgId || ''); setAudience({ everyone: true, roles: [], teams: [] }) }
@@ -100,6 +100,13 @@ export default function ChurchFeed({ page, orgId, organizations, owner, canAdmin
     if (optionsLoading || optionsError) { setError('Audience options are not available. Please reload before saving.'); return }
     if (!audience.everyone && !audience.roles.length && !audience.teams.length) { setError('Select at least one role, ministry or department, or choose everyone.'); return }
     if (!form.title.trim() || (page === 'announcements' && !form.content.trim())) { setError('Enter a title and message.'); return }
+    const eventLatitude = Number(form.location_latitude)
+    const eventLongitude = Number(form.location_longitude)
+    if (page === 'calendar' && form.event_format === 'physical' && (
+      form.location_latitude === '' || form.location_longitude === ''
+      || !Number.isFinite(eventLatitude) || eventLatitude < -90 || eventLatitude > 90
+      || !Number.isFinite(eventLongitude) || eventLongitude < -180 || eventLongitude > 180
+    )) { setError('Choose a valid event location on the map so physical check-in can verify attendees are at the venue.'); return }
     const start = new Date(form.starts_at)
     const end = new Date(form.ends_at)
     let occurrences = []
@@ -113,7 +120,7 @@ export default function ChurchFeed({ page, orgId, organizations, owner, canAdmin
     }
     if (!editing && occurrences.length > 52 && !window.confirm(`This will create ${occurrences.length} individual event occurrences. Continue?`)) return
     const audienceFields = { audience_everyone: audience.everyone, audience_roles: audience.roles, audience_teams: audience.teams }
-    const fields = page === 'calendar' ? { title: form.title.trim(), description: form.content.trim(), starts_at: start.toISOString(), ends_at: end.toISOString(), location: form.location.trim(), location_latitude: form.location_latitude === '' ? null : Number(form.location_latitude), location_longitude: form.location_longitude === '' ? null : Number(form.location_longitude), ...audienceFields } : { title: form.title.trim(), content: form.content.trim(), ...audienceFields }
+    const fields = page === 'calendar' ? { title: form.title.trim(), description: form.content.trim(), starts_at: start.toISOString(), ends_at: end.toISOString(), event_format: form.event_format, location: form.location.trim(), location_latitude: form.event_format === 'physical' ? eventLatitude : null, location_longitude: form.event_format === 'physical' ? eventLongitude : null, ...audienceFields } : { title: form.title.trim(), content: form.content.trim(), ...audienceFields }
     setBusy('save')
     try {
       const recurrenceSeriesId = form.recurrence_frequency === 'none' ? null : crypto.randomUUID()
@@ -155,7 +162,7 @@ export default function ChurchFeed({ page, orgId, organizations, owner, canAdmin
     title: item.title,
     start: item.starts_at,
     end: item.ends_at,
-    extendedProps: { location: item.location, description: item.description, repeatLabel: recurrenceLabel(item) },
+    extendedProps: { location: item.location, description: item.description, eventFormat: item.event_format || 'physical', repeatLabel: recurrenceLabel(item) },
   }))
   if (page === 'calendar') return <div className="event-calendar-layout">
     <section className="directory-card my-card event-calendar-panel">
@@ -169,14 +176,15 @@ export default function ChurchFeed({ page, orgId, organizations, owner, canAdmin
     </section>
     {(owner || canAdmin) && <section className="directory-card my-card event-calendar-editor">
       <h2>{editing ? 'Edit event occurrence' : 'Add an event'}</h2>
-      <p>{editing ? 'Only this occurrence will change; the rest of the repeating schedule stays as created.' : 'Choose a schedule, audience, and optional in-person map pin.'}</p>
+      <p>{editing ? 'Only this occurrence will change; the rest of the repeating schedule stays as created.' : 'Choose whether this service is physical or virtual, then set its schedule and audience.'}</p>
       {optionsError && <div className="notice notice-error" role="alert">{optionsError}</div>}
       <form className="my-form" onSubmit={save}>
         {owner && <label>Church<select value={targetOrg} onChange={(event) => { setTargetOrg(event.target.value); setAudience({ everyone: true, roles: [], teams: [] }) }} disabled={Boolean(editing)} required><option value="">Select a church</option>{organizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>}
         <label>Title<input maxLength={200} required value={form.title} onChange={update('title')} /></label>
         <label>Description<textarea maxLength={10000} value={form.content} onChange={update('content')} /></label>
         <div className="form-grid"><label>Starts<input type="datetime-local" required value={form.starts_at} onChange={update('starts_at')} /></label><label>Ends<input type="datetime-local" required value={form.ends_at} onChange={update('ends_at')} /></label></div>
-        <Suspense fallback={<p>Loading map…</p>}><EventLocationPicker location={form.location} latitude={form.location_latitude} longitude={form.location_longitude} disabled={Boolean(busy)} onChange={(values) => setForm((value) => ({ ...value, ...values }))} /></Suspense>
+        <label>Service type<select value={form.event_format} onChange={update('event_format')} disabled={Boolean(busy)}><option value="physical">Physical service or event</option><option value="virtual">Virtual service</option></select></label>
+        <Suspense fallback={<p>Loading location…</p>}><EventLocationPicker eventFormat={form.event_format} location={form.location} latitude={form.location_latitude} longitude={form.location_longitude} disabled={Boolean(busy)} onChange={(values) => setForm((value) => ({ ...value, ...values }))} /></Suspense>
         {!editing && <fieldset className="event-repeat">
           <legend>Repeat event</legend>
           <label>Frequency<select value={form.recurrence_frequency} onChange={(event) => setForm((value) => ({ ...value, recurrence_frequency: event.target.value, recurrence_weekdays: event.target.value === 'weekly' && !value.recurrence_weekdays.length && value.starts_at ? [new Date(value.starts_at).getDay()] : value.recurrence_weekdays }))}><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></label>
